@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 // Logger interface for telemetry hooks
 interface Logger {
@@ -31,28 +31,28 @@ export function getPrismaClient(logger?: Logger): ExtendedPrismaClient {
     },
     log: [
       {
-        emit: 'event',
-        level: 'query',
+        emit: "event",
+        level: "query",
       },
       {
-        emit: 'event', 
-        level: 'error',
+        emit: "event",
+        level: "error",
       },
       {
-        emit: 'event',
-        level: 'info',
+        emit: "event",
+        level: "info",
       },
       {
-        emit: 'event',
-        level: 'warn',
+        emit: "event",
+        level: "warn",
       },
     ],
   });
 
   // Set up telemetry hooks if logger is provided
   if (logger) {
-    client.$on('query', (e: any) => {
-      logger.info('Prisma Query', {
+    client.$on("query", (e: any) => {
+      logger.info("Prisma Query", {
         query: e.query,
         params: e.params,
         duration: e.duration,
@@ -60,22 +60,22 @@ export function getPrismaClient(logger?: Logger): ExtendedPrismaClient {
       });
     });
 
-    client.$on('error', (e: any) => {
-      logger.error('Prisma Error', {
+    client.$on("error", (e: any) => {
+      logger.error("Prisma Error", {
         message: e.message,
         target: e.target,
       });
     });
 
-    client.$on('info', (e: any) => {
-      logger.info('Prisma Info', {
+    client.$on("info", (e: any) => {
+      logger.info("Prisma Info", {
         message: e.message,
         target: e.target,
       });
     });
 
-    client.$on('warn', (e: any) => {
-      logger.warn('Prisma Warning', {
+    client.$on("warn", (e: any) => {
+      logger.warn("Prisma Warning", {
         message: e.message,
         target: e.target,
       });
@@ -83,16 +83,21 @@ export function getPrismaClient(logger?: Logger): ExtendedPrismaClient {
   }
 
   // Add connection lifecycle logging
-  client.$connect().then(() => {
-    if (logger) {
-      logger.info('Prisma client connected successfully');
-    }
-  }).catch((error: any) => {
-    if (logger) {
-      logger.error('Failed to connect Prisma client', { error: error.message });
-    }
-    throw error;
-  });
+  client
+    .$connect()
+    .then(() => {
+      if (logger) {
+        logger.info("Prisma client connected successfully");
+      }
+    })
+    .catch((error: any) => {
+      if (logger) {
+        logger.error("Failed to connect Prisma client", {
+          error: error.message,
+        });
+      }
+      throw error;
+    });
 
   prisma = client as ExtendedPrismaClient;
   return prisma;
@@ -121,12 +126,13 @@ export async function withTransaction<T>(
     return await client.$transaction(fn);
   } catch (error) {
     if (logger) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Transaction failed', { error: errorMessage });
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error("Transaction failed", { error: errorMessage });
     }
     throw error;
   }
 }
 
 // Export the Prisma client type for use in other modules
-export { PrismaClient } from '@prisma/client';
+export { PrismaClient } from "@prisma/client";
