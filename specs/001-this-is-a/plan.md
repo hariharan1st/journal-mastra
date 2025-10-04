@@ -1,143 +1,159 @@
 # Implementation Plan: Multi-role Telegram Journaling Assistant
 
-**Branch**: `[001-this-is-a]` | **Date**: 2025-10-04 | **Spec**: [`specs/001-this-is-a/spec.md`](../001-this-is-a/spec.md)
+**Branch**: `[001-this-is-a]` | **Date**: 2025-10-04 | **Spec**: `/specs/001-this-is-a/spec.md`
 **Input**: Feature specification from `/specs/001-this-is-a/spec.md`
+
+## Execution Flow (/plan command scope)
+
+1. Load feature spec from Input path — ✅ Completed
+2. Fill Technical Context (scan for NEEDS CLARIFICATION) — ✅ Completed
+3. Fill the Constitution Check section based on the constitution document — ✅ Completed
+4. Evaluate Constitution Check section and log outcomes — ✅ Completed (Initial Constitution Check: PASS)
+5. Execute Phase 0 → `research.md` — ✅ Completed
+6. Execute Phase 1 → `contracts/`, `data-model.md`, `quickstart.md`, `manual-validation.md`, agent context — ✅ Completed
+7. Re-evaluate Constitution Check after design — ✅ Completed (Post-Design Check: PASS)
+8. Plan Phase 2 → Describe task generation approach (do not create `tasks.md`) — ✅ Documented below
+9. Stop — ready for `/tasks`
 
 ## Summary
 
-Admin caregivers publish a single global tracking catalogue that drives dynamic PostgreSQL tables, reminders, and analytics across two Mastra-powered Telegram bots. The platform parses caregiver instructions into schema updates, records user activities against category-specific tables, answers historical questions with analytics insights, and references uploaded documents while maintaining HIPAA/GDPR audit trails.
+Admin caregivers author natural-language catalogues via the Telegram configuration bot; the admin Mastra agent parses those instructions, validates them with Zod, and invokes Prisma-backed tools to version catalogue metadata, create or evolve Postgres tables, and register reminder rules. A separate journaling agent interprets user conversations, maps them onto the active catalogue, and persists structured entries while powering summaries, healthy-vs-unhealthy analytics, compliance logging, and document-grounded answers.
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.9 on Node.js 20.9
-**Primary Dependencies**: `@mastra/core`, `@mastra/memory`, `@mastra/loggers`, `@ai-sdk/anthropic`, `ollama-ai-provider-v2`, `zod`, `pg`, `pgvector`
-**Storage**: PostgreSQL 15+ (primary data + embeddings), encrypted filesystem for document originals, LibSQL (existing) for Mastra telemetry
-**Validation Approach**: Manual validation matrix (see `manual-validation.md`) supplemented by Mastra telemetry smoke checks
-**Target Platform**: Linux server deployment with dual Telegram bots (admin + user)
-**Project Type**: Single backend service with multi-agent orchestration
-**Performance Goals**: <3s response to chat queries, reminder delivery success ≥ 99%, platform uptime ≥ 99.5%
-**Constraints**: Enforce HIPAA/GDPR policies, additive-only schema evolution, row-level security on journal data, audit logging for all DDL/DML tool executions
-**Scale/Scope**: MVP supports ~500 concurrent users with headroom to scale to 5k daily interactions in quarter one
+**Language/Version**: TypeScript 5.9 on Node.js 20.9  
+**Primary Dependencies**: `@mastra/core`, `@mastra/memory`, `@mastra/loggers`, `@ai-sdk/anthropic`, `ollama-ai-provider-v2`, `zod`, `@prisma/client` + `prisma`, `pg`, `pgvector`  
+**Storage**: PostgreSQL 15 (primary + embeddings) with Prisma migrations, encrypted filesystem for document originals  
+**Validation Approach**: Manual evidence per `manual-validation.md`, SQL spot-checks, and Telegram transcript capture  
+**Target Platform**: Linux-hosted Mastra service with dual Telegram bots (admin + user)  
+**Project Type**: Single-service backend (Mastra orchestration + Prisma data layer)  
+**Performance Goals**: Reminder delivery under 5 minutes of schedule, journal ingestion <1s p95, availability ≥99.5%  
+**Constraints**: HIPAA + GDPR compliance, additive schema evolution only, Prisma-managed migrations/CRUD, encrypted-at-rest docs  
+**Scale/Scope**: Launch assumptions ~500 concurrently active users sharing one global catalogue (scalable to thousands with horizontal bot workers)
 
 ## Constitution Check
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
+- **Modular Architecture Mandate**: Admin and user agents, schema orchestration, reminder scheduler, and compliance auditing ship as isolated modules with contracts; shared Prisma client lives in `src/mastra/lib`. ✅
+- **Reusable Building Blocks First**: Existing Mastra abstractions for agents/workflows are reused; Prisma client, Zod validators, and audit helpers are shared across tools. ✅
+- **Readable Code Standard**: Plan mandates typed contracts, descriptive module naming, and inline rationale for schema inference logic. ✅
+- **Security by Design**: All tool inputs validated with Zod, Prisma executes parametrised queries, audit trail + RLS considerations captured. ✅
+- **Scalable Efficiency Focus**: Reminder scheduler batches Prisma writes, embeddings reuse pgvector indices, and dynamic tables avoid per-request migrations. ✅
 
-- **Modular Architecture Mandate**: Introduce discrete agents (`adminCatalogueAgent`, `journalInteractionAgent`), workflows (`journalOrchestratorWorkflow`, `reminderScheduler`), and tools with well-defined contracts under `src/mastra/`.
-- **Reusable Building Blocks First**: Reuse Mastra runtime, logging, Ollama integrations, and centralize Postgres/Zod helpers in shared modules to prevent duplication.
-- **Readable Code Standard**: Design enforces typed contracts, small functions, and inline documentation for schema orchestration, auditing, and analytics.
-- **Security by Design**: All prompts pass through validation; tool layer mediates DDL/DML with audit events, secrets managed via `.env` with no hard-coded credentials.
-- **Scalable Efficiency Focus**: Postgres pooling with `pg`, batched embedding generation, and asynchronous reminder scheduling keep latency predictable.
-
-**Gate Verdicts**: Initial PASS (Phase 0) and Post-Design PASS (Phase 1) — no constitutional deviations.
+**Gate Result**: PASS (Initial & Post-Design Constitution Checks complete)
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (feature artifacts)
 
 ```
 specs/001-this-is-a/
-├── plan.md               # Implementation plan (this file)
-├── research.md           # Phase 0 decisions & rationale
-├── data-model.md         # Phase 1 entity catalogue
-├── quickstart.md         # Environment & runbook instructions
-├── manual-validation.md  # Evidence capture plan
-├── AGENTS.md             # Agent briefs & guardrails
-├── contracts/
-│   ├── admin-catalogue-contract.md
-│   └── journal-writer-contract.md
-└── tasks.md              # Generated by /tasks command (future)
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── manual-validation.md
+└── contracts/
+    ├── admin-catalogue-contract.md
+    └── journal-writer-contract.md
 ```
 
-### Source Code (repository root)
+### Source Code Additions
 
 ```
+prisma/
+└── schema.prisma                # Prisma models for catalogue metadata, reminders, audit logs
+
 src/
 └── mastra/
-    ├── index.ts
     ├── agents/
-    │   ├── admin-catalogue-agent.ts
-    │   ├── journal-interaction-agent.ts
-    │   └── weather-agent.ts              # legacy sample (to retire later)
-    ├── workflows/
-    │   ├── journal-orchestrator-workflow.ts
-    │   ├── reminder-scheduler.ts
-    │   └── weather-workflow.ts           # legacy sample
+    │   ├── admin-catalogue-agent.ts    # Telegram config bot agent
+    │   └── journal-user-agent.ts       # User journaling agent
     ├── tools/
-    │   ├── catalogue-schema-tool.ts
-    │   ├── journal-writer-tool.ts
-    │   ├── document-ingestion-tool.ts
-    │   └── analytics-insights-tool.ts
-    ├── models/
-    │   ├── postgres.ts                   # pooled client + helpers
-    │   ├── embeddings.ts                 # Ollama embedding bridge
-    │   └── ollama.ts                     # existing model provider
-    └── shared/
-        ├── schema-parsers.ts             # Zod schemas & field inference
-        └── telemetry.ts                  # logging/metrics helpers
+    │   ├── catalogue-schema-tool.ts    # Prisma-powered DDL executor
+    │   ├── journal-writer-tool.ts      # Handles parsed journal inserts
+    │   └── document-ingest-tool.ts     # Upload + embedding workflow hook
+    ├── workflows/
+    │   ├── catalogue-sync-workflow.ts  # Coordinates rule-set versioning + reminders
+    │   └── journal-insights-workflow.ts# Summaries & healthy week analysis
+    ├── lib/
+    │   ├── prisma-client.ts            # Shared Prisma client factory & telemetry hooks
+    │   ├── parsing/
+    │   │   ├── catalogue-schema-parser.ts
+    │   │   └── journal-message-parser.ts
+    │   └── compliance/
+    │       └── audit-logger.ts
+    └── services/
+        ├── reminder-scheduler.ts       # Interval scheduling + escalation handling
+        └── retention-runner.ts         # HIPAA/GDPR retention enforcement
 
 docs/
-├── feature-guides/
-│   └── 001-this-is-a.md                  # post-implementation write-up
 └── validations/
-    └── 001-this-is-a/
-        ├── README.md
-        └── evidence/*                    # transcripts, screenshots, SQL dumps
+    └── 001-this-is-a/                  # Manual validation evidence bundle
 ```
 
-**Structure Decision**: Extend existing Mastra backend by layering new admin/user agents, workflows, and Postgres tooling. Legacy weather demo remains unaffected, preserving modular boundaries per Constitution Principle I.
+**Structure Decision**: Single Mastra backend with Prisma-governed Postgres. Shared libraries live under `src/mastra/lib`; agents/tools/workflows align with existing repo conventions to preserve modularity and reuse.
 
 ## Phase 0: Outline & Research
 
-- Consolidated unknowns into `research.md`, covering dynamic schema orchestration, agent split, tool roster, document ingestion, and compliance logging.
-- Selected PostgreSQL with additive DDL strategy and immutable `audit_events` log to satisfy HIPAA/GDPR.
-- Confirmed two-agent topology to mirror separate Telegram bots and avoid prompt bloat.
-- Standardized tool contracts for schema changes and journal writes, ensuring deterministic, auditable operations.
-- **Status**: Complete — no outstanding clarifications.
+- Resolved dynamic schema orchestration with Prisma raw DDL executed through a controlled tool wrapper (see `research.md`, Decision 1).
+- Selected dual-agent composition with shared workflows for reminders, analytics, and document retrieval (Decision 2).
+- Documented guard rails for LLM-to-DDL translation, compliance logging, and document embedding strategy (Decisions 3-5).
+- All unknowns from Technical Context cleared; no outstanding clarifications remain.
+
+**Output**: `/home/agent/code/journal-mastra/specs/001-this-is-a/research.md`
 
 ## Phase 1: Design & Contracts
 
-- `data-model.md` documents core relational schema (catalogue, dynamic journal tables, reminders, documents, audit events) and RLS/audit considerations.
-- `/contracts/` defines TypeScript request/response shapes for `catalogueSchemaTool` and `journalWriterTool`, including error codes and idempotency requirements.
-- `AGENTS.md` outlines admin vs. user agent briefs, guardrails, and shared workflow telemetry expectations.
-- `quickstart.md` delivers environment bootstrap (Node 20, Postgres + pgvector, Telegram tokens, Ollama) and dev workflows.
-- `manual-validation.md` enumerates seven validation scenarios (MV-01…MV-07) aligned with acceptance criteria and compliance checks.
-- `.specify/scripts/bash/update-agent-context.sh copilot` executed to sync global instructions (rerun after any major plan edits).
-- **Status**: Complete — design artifacts ready for task generation.
+- `data-model.md` captures Prisma models for catalogue metadata, reminder rules, dynamic journal tables, documents, embeddings, and audit events, including governance for additive schema evolution.
+- Contracts define the admin catalogue schema tool and journal writer tool interface, ensuring Mastra agents call typed tool functions.
+- `quickstart.md` details prerequisites, Prisma setup (`npm install`, `prisma generate`, `prisma migrate`), and dev workflow for Telegram bots.
+- `manual-validation.md` enumerates seven evidence flows covering catalogue publishing, journal writes, reminders, analytics, document Q&A, and compliance checks.
+- Constitution re-check confirmed modularity, reuse, readability, security, and scalability expectations are upheld post-design.
+
+**Output Paths**:
+
+- `/home/agent/code/journal-mastra/specs/001-this-is-a/data-model.md`
+- `/home/agent/code/journal-mastra/specs/001-this-is-a/quickstart.md`
+- `/home/agent/code/journal-mastra/specs/001-this-is-a/manual-validation.md`
+- `/home/agent/code/journal-mastra/specs/001-this-is-a/contracts/`
 
 ## Phase 2: Task Planning Approach
 
-_This section describes what the /tasks command will do — DO NOT execute during /plan._
-
-- Load `.specify/templates/tasks-template.md` and map deliverables from `data-model.md`, `contracts/`, `AGENTS.md`, `quickstart.md`, and `manual-validation.md`.
-- Generate ordered tasks covering configuration scaffolding, Postgres client + migrations, admin catalogue pipeline, journal logging, reminders, document ingestion, analytics insights, audit logging, and manual validation evidence.
-- Label parallelizable tracks (e.g., document ingestion vs. reminder scheduler) with `[P]` for future execution planning.
-- Include security/performance work items: RLS enforcement, consent gating, telemetry dashboards.
-- Expected output: ~20 tasks with explicit dependencies and evidence capture notes in `tasks.md`.
+- Seed tasks from design docs: Prisma schema creation, Mastra agent scaffolding, schema inference utilities, reminder scheduler, document ingestion pipeline, audit logging, and manual validation prep.
+- Prioritise groundwork (Prisma schema, migrations, shared client) before integrating agents/tools/workflows.
+- Annotate parallelisable tasks (`[P]`) for independent modules (e.g., document ingestion vs. reminder scheduler).
+- Include compliance hardening (RLS policies, audit log verification) and evidence capture tasks drawn from `manual-validation.md`.
+- Expected output: 18–24 ordered tasks in `tasks.md` when `/tasks` is executed.
 
 ## Phase 3+: Future Implementation
 
-- **Phase 3**: Run `/tasks` to materialize task list.
-- **Phase 4**: Implement tasks respecting modular boundaries and compliance guardrails.
-- **Phase 5**: Execute manual validation matrix, archive evidence in `docs/validations/001-this-is-a/`.
+- **Phase 3**: `/tasks` command to materialise task list.
+- **Phase 4**: Implement tasks respecting constitutional guardrails.
+- **Phase 5**: Execute manual validation flows, capture evidence, and prepare launch sign-off package.
 
 ## Complexity Tracking
 
-_No constitutional deviations identified; table not required._
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+| --------- | ---------- | ------------------------------------ |
+| _None_    | –          | –                                    |
 
 ## Progress Tracking
 
+**Phase Status**:
+
 - [x] Phase 0: Research complete (/plan command)
 - [x] Phase 1: Design complete (/plan command)
-- [ ] Phase 2: Task planning complete (/plan command — describe approach only)
+- [ ] Phase 2: Task planning complete (/plan command - describe approach only)
 - [x] Manual validation plan documented
 - [ ] Phase 3: Tasks generated (/tasks command)
 - [ ] Phase 4: Implementation complete
 - [ ] Phase 5: Validation passed
 
-**Gate Status** (Constitution v1.0.0):
+_Based on Constitution v1.0.0 — see `/specify/memory/constitution.md`_
+
+**Gate Status**:
 
 - [x] Initial Constitution Check: PASS
 - [x] Post-Design Constitution Check: PASS
 - [x] All NEEDS CLARIFICATION resolved
-- [ ] Complexity deviations documented (N/A)
+- [ ] Complexity deviations documented (n/a)

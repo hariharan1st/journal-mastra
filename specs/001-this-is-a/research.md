@@ -2,45 +2,53 @@
 
 ## Decision Log
 
-### 1. Dynamic Tracking Catalogue Persistence
+### 1. Prisma-Governed Catalogue Metadata & DDL
 
-- **Decision**: Use PostgreSQL as the authoritative store for admin-defined tracking catalogues and per-category journal tables, managed through a schema-orchestration service that issues `CREATE TABLE` / `ALTER TABLE` statements derived from validated admin instructions.
-- **Rationale**: PostgreSQL offers transactional DDL, robust JSONB support for metadata, role-based access control, and aligns with the requirement for HIPAA/GDPR compliance via mature auditing extensions. Using direct SQL keeps migrations transparent and auditable.
+- **Decision**: Use Prisma as the authoritative migration tool for core catalogue metadata tables while executing additive DDL for dynamic journal tables through `PrismaClient.$executeRaw` inside a hardened `catalogueSchemaTool`.
+- **Rationale**: Aligns with the requirement that migrations/CRUD flow through Prisma, keeps schema history in `prisma/migrations`, and still allows controlled runtime table/column creation derived from admin instructions.
 - **Alternatives Considered**:
-  - **LibSQL (existing project default)**: Lacks the compliance features and scalability guarantees required for HIPAA workloads.
-  - **ORM-managed schema (Prisma/TypeORM)**: Slower iteration for highly dynamic per-category schemas and adds abstraction overhead when issuing incremental column changes.
+  - **Direct node-postgres client**: Violates the Prisma-first directive and duplicates connection management.
+  - **`prisma migrate dev` on every admin change**: Too slow and unsafe for runtime operations; raw DDL within a managed tool is faster while preserving Prisma models for metadata tables.
 
-### 2. Agent Composition Strategy
+### 2. Dual-Mastra Agent Composition
 
-- **Decision**: Implement two primary Mastra agents—`adminCatalogueAgent` and `journalInteractionAgent`—backed by a shared workflow that orchestrates reminder scheduling, document ingestion, and query handling via dedicated tools.
-- **Rationale**: Splitting admin configuration from user interactions enforces modularity, matches Telegram bot separation, and allows independent instruction sets tuned for catalog authoring vs. journaling conversations.
+- **Decision**: Maintain two Mastra agents—`adminCatalogueAgent` for configuration parsing and `journalUserAgent` for journaling conversations—coordinated by shared workflows for reminders, analytics, and document responses.
+- **Rationale**: Mirrors the Telegram bot split (admin vs. user), keeps prompts focused, and enables targeted tool exposure (schema vs. journal writer) without overloading a single agent.
 - **Alternatives Considered**:
-  - **Single monolithic agent**: Risks prompt bloat, weaker guardrails, and higher chance of misrouting tool calls.
-  - **Per-category specialist agents**: Adds orchestration complexity without clear benefit in the launch scope.
+  - **Unified agent**: Higher risk of tool misuse and token bloat.
+  - **Per-domain micro-agents**: Adds orchestration overhead without material benefit for MVP scope.
 
-### 3. Tooling for Schema Changes & Data Capture
+### 3. Schema Inference Guard Rails
 
-- **Decision**: Expose a `catalogueSchemaTool` for admin-driven schema adjustments and a `journalWriterTool` for inserting parsed user messages, both implemented as TypeScript functions using a shared Postgres client and Zod validation layers.
-- **Rationale**: Tool encapsulation keeps DDL/DML logic deterministic, facilitates auditing, and provides a reusable integration point if future caregivers add automation.
+- **Decision**: Parse admin text with structured outputs (Anthropic function calling) validated by Zod, map inferred field types to Prisma-compatible Postgres types, and require human-friendly field labels plus snake_case column names before executing DDL.
+- **Rationale**: Prevents unsafe column creation, satisfies readability requirements, and ensures new columns comply with Prisma expectations (numeric/text/datetime/etc.).
 - **Alternatives Considered**:
-  - **Direct database access from agent prompts**: Violates security-by-design principle; tool mediation is safer.
-  - **External migration service**: Overkill for incremental column adjustments triggered by configuration text.
+  - **Free-form prompt-to-SQL**: Too error-prone and violates Security by Design.
+  - **Manual admin UI**: Out of scope for current Telegram-first workflow.
 
-### 4. Document Ingestion & Retrieval
+### 4. Journal Writer Persistence Strategy
 
-- **Decision**: Store uploaded files in an encrypted filesystem volume with metadata persisted to Postgres and embeddings generated via the existing Ollama provider, indexed in a `document_embeddings` table for semantic retrieval.
-- **Rationale**: Fulfills requirement to retain originals while enabling question answering, and leverages current Ollama integration to avoid new providers.
+- **Decision**: The `journalWriterTool` uses Prisma transactions to lookup catalogue metadata, resolve target table names, and insert parsed values with consent checks; missing mandatory fields trigger follow-up prompts instead of partial inserts.
+- **Rationale**: Keeps CRUD within Prisma, centralises validation logic, and allows reuse for analytics queries.
 - **Alternatives Considered**:
-  - **Cloud object storage (S3)**: Deferred until deployment strategy is finalized; local filesystem suffices for MVP.
-  - **External vector DB**: Adds operational overhead when Postgres + pgvector can satisfy embedding search.
+  - **Direct SQL via `pg`**: Breaks Prisma-only requirement.
+  - **JSON shadow table**: Loses per-field queryability demanded by analytics.
 
-### 5. Compliance & Audit Logging Approach
+### 5. Document Ingestion & Retrieval
 
-- **Decision**: Introduce an audit logging middleware that records admin schema changes, reminder dispatches, and data access events into an `audit_events` table with immutable JSONB payloads.
-- **Rationale**: Addresses HIPAA/GDPR traceability, supports breach investigations, and reuses Postgres for centralized storage.
+- **Decision**: Store encrypted originals on disk, persist metadata via Prisma models, and push embeddings to a Prisma-managed `document_embeddings` table with `pgvector` support; retrieval uses cosine similarity queries with guardrailed citations.
+- **Rationale**: Reuses existing Ollama integration, keeps compliance posture (filesystem encryption + DB audit), and avoids introducing an external vector service.
 - **Alternatives Considered**:
-  - **External logging service**: Not necessary initially; increases exposure surface.
-  - **Application logs only**: Insufficient for compliance evidence and tamper-proof storage.
+  - **Cloud object storage**: Deferred until deployment environment is fixed.
+  - **Third-party vector DB**: Adds ops burden with limited MVP gain.
+
+### 6. Reminder Scheduling & Compliance Logging
+
+- **Decision**: Run a dedicated reminder scheduler service that reads Prisma-stored schedules, dispatches Telegram prompts, and logs results plus schema changes into an immutable `audit_events` table.
+- **Rationale**: Satisfies HIPAA/GDPR traceability, ensures reminder SLAs (<5 minutes), and centralises compliance reporting.
+- **Alternatives Considered**:
+  - **Crontab + ad hoc logging**: Hard to audit and scale.
+  - **Third-party scheduler**: Adds latency and dependence on external infra before necessity is proven.
 
 ## Outstanding Questions
 

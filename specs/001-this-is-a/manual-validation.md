@@ -2,15 +2,15 @@
 
 ## Test Matrix Overview
 
-| Scenario | Description                               | Evidence to Capture                                  |
-| -------- | ----------------------------------------- | ---------------------------------------------------- |
-| MV-01    | Admin publishes global tracking catalogue | Telegram transcript + DB schema diff + audit log row |
-| MV-02    | User logs journal entries per catalogue   | Transcript + `journal_*` table rows                  |
-| MV-03    | Reminder delivery & acknowledgement       | Reminder logs + user acknowledgement screenshot      |
-| MV-04    | Historical summary query                  | Bot response screenshot + SQL output                 |
-| MV-05    | Healthy vs. unhealthy week analysis       | Bot response + supporting metrics                    |
-| MV-06    | Document ingestion & semantic answer      | Transcript + cited document details                  |
-| MV-07    | Compliance + retention checks             | Audit event queries + consent state screenshot       |
+| Scenario | Description                               | Evidence to Capture                                      |
+| -------- | ----------------------------------------- | -------------------------------------------------------- |
+| MV-01    | Admin publishes global tracking catalogue | Telegram transcript + Prisma migration log + audit event |
+| MV-02    | User logs journal entries per catalogue   | Transcript + `journal_*` table rows                      |
+| MV-03    | Reminder delivery & acknowledgement       | Reminder logs + user acknowledgement screenshot          |
+| MV-04    | Historical summary query                  | Bot response screenshot + SQL output                     |
+| MV-05    | Healthy vs. unhealthy week analysis       | Bot response + supporting metrics                        |
+| MV-06    | Document ingestion & semantic answer      | Transcript + cited document details                      |
+| MV-07    | Compliance + retention checks             | Audit event queries + consent state screenshot           |
 
 ## Detailed Flows
 
@@ -19,10 +19,11 @@
 1. Start Mastra dev server and connect admin Telegram bot.
 2. Send configuration prompt describing at least two metrics (water, medication) with field requirements.
 3. Observe bot confirmation summarizing parsed schema.
-4. Query Postgres:
-   - `SELECT * FROM tracking_catalogue_items;`
-   - `SELECT table_name FROM journal_entry_tables;`
-5. Check `audit_events` for `catalogue.schema_change` entry with JSON payload.
+4. Inspect Prisma migration logs / telemetry for recorded runtime DDL (e.g., `catalogueSchemaTool` info entry).
+5. Query Postgres:
+   - `SELECT slug, table_name FROM journal_entry_tables;`
+   - `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'journal_water_intake';`
+6. Check `audit_events` for `catalogue.schema_change` entry with column diff payload.
 
 **Expected Result**: Two catalogue items created, corresponding dynamic tables exist, audit log captured.
 
@@ -30,7 +31,7 @@
 
 1. Using user bot, submit water intake message (e.g., "Drank 500 ml at 9 AM").
 2. Submit medication adherence message (e.g., "Took Lipitor 20mg at 9 PM; 25 pills left").
-3. Verify tool inserted rows:
+3. Verify tool inserted rows via Prisma client or SQL:
    - `SELECT quantity, unit FROM journal_water_intake ORDER BY recorded_at DESC LIMIT 1;`
    - `SELECT dosage_mg, supply_remaining FROM journal_medications ORDER BY recorded_at DESC LIMIT 1;`
 
@@ -69,6 +70,7 @@
 3. Ask question referencing document ("What dosage did Dr. Smith recommend?").
 4. Response should cite document title and relevant excerpt.
 5. Query `document_embeddings` for new vectors.
+6. Confirm audit event `document.ingested` recorded.
 
 **Expected Result**: Answer grounded in document with citation, embeddings present.
 
@@ -77,6 +79,7 @@
 1. Revoke consent for a test user; ensure journaling features disable appropriately.
 2. Trigger data export routine and confirm audit trail entry `privacy.subject_access`.
 3. Verify role-based access: attempt to query as caregiver (future scope) and confirm denial (log entry `security.rls_denied`).
+4. Export audit log subset for compliance review using Prisma.
 
 **Expected Result**: Consent state enforced, audit events recorded, unauthorized access blocked.
 

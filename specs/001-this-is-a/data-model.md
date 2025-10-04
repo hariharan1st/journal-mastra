@@ -2,79 +2,90 @@
 
 ## Overview
 
-The journaling platform stores globally managed tracking catalogues, per-user journal entries, reminder schedules, uploaded documents, and compliance audit logs in PostgreSQL. Admin caregivers configure the catalogue once; all organizations and users share the resulting schema. The system dynamically provisions per-category journal tables while preserving immutable configuration history for traceability.
+PostgreSQL (managed through Prisma) houses global catalogue metadata, reminder schedules, dynamic journal tables, document storage metadata, embeddings, and immutable audit trails. Admin caregivers publish one global rule set; Prisma migrations capture structural history for metadata tables, while runtime DDL (executed via Prisma) provisions per-category journal tables in response to admin instructions.
 
-## Core Tables
+## Core Tables (Prisma Models)
 
 ### 1. `admin_rule_sets`
 
-Captures each published version of the global catalogue.
+Versioned history of catalogue publications.
 
 - `id` (UUID, PK)
 - `version` (INTEGER, auto-increment)
-- `published_at` (TIMESTAMPTZ, required)
-- `published_by` (UUID → `user_profiles.id`, nullable until caregiver expansion)
-- `source_text` (TEXT, original admin instruction payload)
-- `structured_config` (JSONB, validated schema definition)
+- `published_at` (TIMESTAMPTZ)
+- `published_by` (UUID → `caregiver_profiles.id`, nullable until caregiver tooling ships)
+- `source_text` (TEXT) — raw admin prompt
+- `structured_config` (JSONB) — validated config snapshot
 - `status` (ENUM: `draft`, `published`, `superseded`)
-- `checksum` (TEXT, used to detect duplicate submissions)
-- Index: `(status, published_at DESC)`
+- `checksum` (TEXT) — deduplication hash
+- Unique index on `(version)` and `(status, published_at DESC)` for fast lookups
 
 ### 2. `tracking_catalogue_items`
 
-Represents each trackable metric defined in the active rule set.
+Catalogue-level categories (e.g., water, medication).
 
 - `id` (UUID, PK)
-- `rule_set_id` (UUID → `admin_rule_sets.id`, on delete cascade)
-- `slug` (TEXT, unique, kebab-case identifier e.g. `water-intake`)
+- `rule_set_id` (UUID → `admin_rule_sets.id`, cascade)
+- `slug` (TEXT, unique)
 - `display_name` (TEXT)
-- `data_type` (ENUM: `numeric`, `boolean`, `text`, `enum`, `datetime`)
-- `unit_hints` (TEXT[], e.g. `["ml", "oz"]`)
-- `frequency` (ENUM: `daily`, `hourly`, `as-needed`)
-- `reminder_template` (JSONB; stores message copy + schedule)
+- `description` (TEXT)
+- `frequency` (ENUM: `hourly`, `daily`, `weekly`, `as_needed`)
+- `reminder_template` (JSONB) — copy, timezone, escalation metadata
 - `analytics_tags` (TEXT[])
-- Index: `(rule_set_id, slug)` unique
+- Unique on `(rule_set_id, slug)`
 
-### 3. `journal_entry_tables`
+### 3. `tracking_catalogue_fields`
 
-Metadata describing dynamically generated per-category tables.
+Normalized definition of fields that must exist within each dynamic journal table.
+
+- `id` (UUID, PK)
+- `catalogue_item_id` (UUID → `tracking_catalogue_items.id`, cascade)
+- `column_name` (TEXT, snake_case, e.g., `quantity`)
+- `label` (TEXT, human readable)
+- `data_type` (ENUM: `int`, `numeric`, `text`, `boolean`, `enum`, `timestamp`)
+- `unit_hints` (TEXT[])
+- `required` (BOOLEAN)
+- `enum_values` (TEXT[], nullable)
+- `example` (TEXT, optional sample phrase)
+- Unique on `(catalogue_item_id, column_name)`
+
+### 4. `journal_entry_tables`
+
+Metadata that maps catalogue items to physical Postgres tables.
 
 - `id` (UUID, PK)
 - `catalogue_item_id` (UUID → `tracking_catalogue_items.id`, unique)
-- `table_name` (TEXT, unique, e.g. `journal_water_intake`)
-- `schema_definition` (JSONB; column list with types and nullable flags)
-- `created_at` (TIMESTAMPTZ)
-- `updated_at` (TIMESTAMPTZ)
+- `table_name` (TEXT, unique; e.g., `journal_water_intake`)
+- `base_columns` (JSONB) — invariant fields enforced across tables
+- `schema_version` (INTEGER) — increments on column additions
+- `created_at` / `updated_at` (TIMESTAMPTZ)
 
-### 4. Dynamic Journal Tables (one per catalogue item)
+### 5. Dynamic Journal Tables (`journal_<slug>`)
 
-Each table shares the same base columns plus category-specific columns inferred from `schema_definition`.
+Created/altered at runtime (DDL executed via Prisma). Shared columns:
 
 - `id` (UUID, PK)
 - `user_id` (UUID → `user_profiles.id`)
-- `source_message_id` (TEXT, Telegram message identifier)
-- `recorded_at` (TIMESTAMPTZ, defaults to now)
-- `submitted_at` (TIMESTAMPTZ, message timestamp)
+- `who_recorded` (UUID → `caregiver_profiles.id`, nullable)
+- `source_message_id` (TEXT)
+- `submitted_at` (TIMESTAMPTZ)
+- `recorded_at` (TIMESTAMPTZ DEFAULT now())
 - `health_week_label` (ENUM: `healthy`, `unhealthy`, `unspecified`)
-- `meta` (JSONB, optional raw parse output)
-- **Category-specific fields** (e.g., `quantity NUMERIC`, `unit TEXT`, `logged_for TIMESTAMPTZ`)
-- Indices: `(user_id, recorded_at DESC)`, GIN index on `meta`
+- `meta` (JSONB) — parser confidence data
+- Category-specific columns defined by `tracking_catalogue_fields` (e.g., `quantity NUMERIC`, `unit TEXT`, `logged_for TIMESTAMPTZ`)
+- Indices: `(user_id, recorded_at DESC)`, `(recorded_at DESC)` and optional partial indexes for high-volume metrics
 
-### 5. `user_profiles`
-
-Primary subject record for journaling users.
+### 6. `user_profiles`
 
 - `id` (UUID, PK)
 - `telegram_user_id` (TEXT, unique)
 - `display_name` (TEXT)
 - `timezone` (TEXT)
-- `caregiver_id` (UUID → `caregiver_profiles.id`, nullable until caregiver tooling ships)
 - `consent_status` (ENUM: `pending`, `granted`, `revoked`)
 - `consent_recorded_at` (TIMESTAMPTZ)
+- `health_coach` (UUID → `caregiver_profiles.id`, nullable future use)
 
-### 6. `caregiver_profiles`
-
-Provisioned for future caregiver expansion (kept minimal for now).
+### 7. `caregiver_profiles`
 
 - `id` (UUID, PK)
 - `role` (ENUM: `admin`, `caregiver`)
@@ -82,20 +93,17 @@ Provisioned for future caregiver expansion (kept minimal for now).
 - `display_name` (TEXT)
 - `organization` (TEXT)
 
-### 7. `reminder_rules`
-
-Mirror admin reminder definitions for scheduling.
+### 8. `reminder_rules`
 
 - `id` (UUID, PK)
 - `catalogue_item_id` (UUID → `tracking_catalogue_items.id`)
-- `schedule` (JSONB; cron-like expression + timezone)
+- `schedule_cron` (TEXT)
+- `timezone` (TEXT)
 - `delivery_channel` (ENUM: `user_bot`, `caregiver_bot`)
-- `escalation_policy` (JSONB; retries, caregiver notifications)
+- `escalation_policy` (JSONB)
 - `active` (BOOLEAN)
 
-### 8. `reminder_dispatches`
-
-Tracks reminder delivery and acknowledgement.
+### 9. `reminder_dispatches`
 
 - `id` (UUID, PK)
 - `reminder_rule_id` (UUID → `reminder_rules.id`)
@@ -104,64 +112,59 @@ Tracks reminder delivery and acknowledgement.
 - `delivered_at` (TIMESTAMPTZ, nullable)
 - `acknowledged_at` (TIMESTAMPTZ, nullable)
 - `status` (ENUM: `scheduled`, `sent`, `failed`, `missed`, `acknowledged`)
-- `delivery_payload` (JSONB)
+- `payload` (JSONB)
 
-### 9. `documents`
-
-Stores uploaded document metadata.
+### 10. `documents`
 
 - `id` (UUID, PK)
 - `user_id` (UUID → `user_profiles.id`)
 - `original_filename` (TEXT)
-- `storage_path` (TEXT, absolute path on encrypted volume)
+- `storage_path` (TEXT)
 - `mime_type` (TEXT)
 - `uploaded_at` (TIMESTAMPTZ)
 - `summary` (TEXT)
 - `checksum` (TEXT)
 
-### 10. `document_embeddings`
-
-Embedding vectors per document chunk.
+### 11. `document_embeddings`
 
 - `id` (UUID, PK)
-- `document_id` (UUID → `documents.id` on delete cascade)
+- `document_id` (UUID → `documents.id`, cascade)
 - `chunk_index` (INTEGER)
 - `content` (TEXT)
-- `embedding` (VECTOR using `pgvector`)
+- `embedding` (VECTOR via `pgvector`)
 - `created_at` (TIMESTAMPTZ)
-- Index: HNSW index on `embedding`
+- HNSW index on `embedding`
 
-### 11. `audit_events`
-
-Compliance audit log with immutable payloads.
+### 12. `audit_events`
 
 - `id` (UUID, PK)
 - `occurred_at` (TIMESTAMPTZ DEFAULT now())
 - `actor_type` (ENUM: `admin`, `user`, `system`)
-- `actor_id` (UUID nullable for system events)
-- `event_type` (TEXT, e.g., `catalogue.updated`, `journal.inserted`, `document.retrieved`)
+- `actor_id` (UUID, nullable)
+- `event_type` (TEXT; e.g., `catalogue.schema_change`, `journal.inserted`)
 - `resource_ref` (TEXT)
 - `payload` (JSONB)
-- Index: `(event_type, occurred_at DESC)`
+- Composite index `(event_type, occurred_at DESC)`
 
 ## Relationships
 
 - `admin_rule_sets` 1→N `tracking_catalogue_items`
+- `tracking_catalogue_items` 1→N `tracking_catalogue_fields`
 - `tracking_catalogue_items` 1→1 `journal_entry_tables`
 - `tracking_catalogue_items` 1→N `reminder_rules`
 - `user_profiles` 1→N dynamic journal tables, `reminder_dispatches`, `documents`
 - `documents` 1→N `document_embeddings`
-- `user_profiles` N→1 `caregiver_profiles` (future)
+- `caregiver_profiles` 1→N `user_profiles` (future caregiver tooling)
 
 ## Dynamic Schema Governance
 
-- Each catalogue item stores machine-readable field definitions (name, SQL type, nullability, semantic label).
-- The `catalogueSchemaTool` compares incoming definitions against `journal_entry_tables.schema_definition` to determine whether to `CREATE TABLE`, `ALTER TABLE ADD COLUMN`, or no-op.
-- Schema updates emit `audit_events` (`event_type = catalogue.schema_change`) and append a new `admin_rule_sets` version.
-- Downgrades and destructive migrations are disallowed; new fields must be additive.
+- `catalogueSchemaTool` loads `tracking_catalogue_fields` for a slug, compares to `information_schema.columns`, and determines whether to `CREATE TABLE` or `ALTER TABLE ADD COLUMN` using Prisma `.$executeRaw` within a transaction.
+- Base columns (`user_id`, `who_recorded`, `submitted_at`, `recorded_at`, `health_week_label`, `meta`) are enforced for every dynamic table; Prisma migrations track their definition in a reusable SQL template.
+- Column additions increment `journal_entry_tables.schema_version`, persist the change payload to `audit_events`, and attach to the active `admin_rule_sets` version.
+- Destructive changes are disallowed; requests for removals queue manual review tasks instead of executing automatically.
 
 ## Data Retention & Compliance Notes
 
-- Journal entries and documents inherit tenant-wide retention rules (configurable via `admin_rule_sets`), enforced by scheduled jobs that mark records for archival but retain audit history.
-- `audit_events` are write-once and protected via row-level security policies to prevent tampering.
-- Access to dynamic journal tables is mediated by views that enforce row-level security per `user_profiles.id`.
+- Retention policies (`journalRetentionDays`, `documentRetentionDays`) stored on `admin_rule_sets` feed a scheduled retention runner that archives or deletes data while keeping audit logs intact.
+- Row-level security (enforced later in implementation) restricts dynamic table access to the owning `user_profiles.id` and privileged caregivers.
+- `audit_events` capture agent identity, Telegram message IDs, and before/after schema snapshots to meet HIPAA/GDPR traceability.
