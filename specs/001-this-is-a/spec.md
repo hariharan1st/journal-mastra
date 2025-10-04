@@ -8,6 +8,15 @@
 Based on medication routines dictated by the doctor, the bot should send reminders to the user to take those medications or to buy medicines if those are out of stock. The medicines also can be tracked based on consumption, the information can be taken from the chat as the user sends text.
 Based on homework routines dictated by the teacher persona, the bot should send reminders to the user about homeworks, or todos or to buy stationaries which the user does not have."
 
+## Clarifications
+
+### Session 2025-10-04
+
+- Q: Should the admin caregiver's tracking catalogue be global or scoped per organization/user? → A: One global catalogue shared by all organizations/users
+- Q: Who labels weeks as healthy vs unhealthy for analytics comparisons? → A: User defines it
+- Q: How should uploaded documents be stored for later reference? → A: Filesystem originals; text & embeddings in Postgres
+- Q: Are there specific compliance regimes we must satisfy for stored health/activity data? → A: Both HIPAA and GDPR requirements apply
+
 ## User Scenarios & Validation _(mandatory)_
 
 ### Primary User Story
@@ -19,6 +28,7 @@ The admin caregiver defines which journaling categories the organization will tr
 1. **Given** the admin caregiver has published the organization-wide tracking catalogue (e.g., water, workouts, medications), **When** a user logs their daily details in the Telegram bot, **Then** the system stores entries against the defined categories and confirms successful capture in chat.
 2. **Given** a user has been logging daily activities and health metrics, **When** they ask the user bot for a specific date span or frequency (e.g., “How many times did I work out last week?”), **Then** the system returns the requested counts or summaries sourced from stored entries.
 3. **Given** the user reports an unusual health issue for a particular week, **When** they ask the bot to explain potential causes, **Then** the system analyzes differences between healthy and unhealthy weeks, identifies missing or abnormal activities, and presents the findings conversationally with supporting data points.
+   - Users explicitly tag weeks as “healthy” or “unhealthy”; analytics operates on those user-provided labels.
 4. **Given** a user uploads supporting documents (e.g., prescriptions, assignments), **When** they ask the user bot a related question, **Then** the system references the stored documents to deliver an informed answer and cites the source document title.
 5. _(Future caregiver expansion)_ **Given** a caregiver is reviewing an assigned user, **When** the caregiver queries tracked data or stored documents via the configuration bot, **Then** the system returns the requested metrics, summaries, or document excerpts so the caregiver can advise with full context once the caregiver release ships.
 
@@ -43,12 +53,22 @@ The admin caregiver defines which journaling categories the organization will tr
 ### Functional Requirements
 
 - **FR-001**: System MUST enable the admin caregiver to define and update the global tracking catalogue, default reminder policies, and analytics parameters that apply to all users.
+- **FR-001a**: Admin catalogue updates are published globally; all organizations and users share the same tracking catalogue definition.
 - **FR-002**: System MUST provide a user-facing Telegram interface for journaling, allowing individuals to submit admin-defined activity entries, receive reminders, and retrieve stored information.
 - **FR-003**: System MUST persist each user’s submitted details (e.g., water intake, medication adherence, workouts, homework status) in distinct, queryable data structures in accordance with the global tracking catalogue to support retrieval and auditing.
 - **FR-004**: System MUST generate reminder messages to users based on admin-defined routines and track acknowledged vs. missed reminders.
 - **FR-005**: System MUST ingest admin- or user-uploaded documents and make their contents searchable for subsequent question answering.
+- **FR-005a**: Document ingestion stores originals in managed filesystem storage while persisting extracted text and vector embeddings in Postgres; retrieval operates on these representations and references the stored file path.
 - **FR-006**: System MUST allow users to request historical summaries (daily, weekly, custom range) of tracked metrics through chat and respond with consolidated results including activity counts.
 - **FR-007**: System MUST analyze health-related logs to explain differences between healthy and unhealthy periods and present insights conversationally, referencing contributing or missing activities and noting data gaps when present.
+- **FR-007a**: Users manually designate week health labels that drive comparative analytics; the system prompts for a label if missing before generating explanations.
+- **FR-008**: System MUST comply with HIPAA and GDPR obligations regarding user data protection, including role-based access, audit logging, retention rules, and breach notification workflows.
+
+### Non-Functional Requirements
+
+- **Security & Privacy**: Encrypt data at rest and in transit, enforce least-privilege access, maintain audit trails for admin and agent actions, and support secure key rotation.
+- **Compliance**: Implement HIPAA and GDPR controls: document consent capture, support subject access and deletion requests, track data lineage, and ensure breach notifications meet regulatory timelines.
+- **Reliability**: Target 99.5% uptime for journaling and reminder delivery services with automated recovery for failed jobs.
 
 #### Future Functional Requirements — Caregiver Expansion
 
@@ -61,10 +81,11 @@ The admin caregiver defines which journaling categories the organization will tr
 - **User Profile**: Represents an individual using the user bot (patient/student); stores identity details, caregiver assignment, and communication preferences.
 - **Caregiver Profile**: _(Future expansion)_ Represents a doctor, teacher, or other caregiver configuring tracking rules; includes authority scope, managed users, and notification preferences.
 - **Admin Rule Set**: Captures organization-wide tracking categories and their datatypes, default reminder policies, analytics baselines, and publishing history managed by the admin caregiver.
+- **Global Tracking Catalogue**: Single source of truth for all organizations/users derived from the Admin Rule Set; any update applies platform-wide immediately.
 - **Tracking Category**: Defines a specific metric to monitor (e.g., water intake, medication name, homework subject in accordance with organization-wide tracking categories) along with expected logging frequency and reminder templates.
 - **Reminder Rule**: Captures scheduling parameters, trigger conditions, escalation paths, and associated tracking categories for automated prompts.
 - **Journal Entry**: Records user-submitted data points (text, numeric values, confirmations) tied to a tracking category and timestamp.
-- **Document Repository Item**: Represents an uploaded document with metadata, extracted content summaries, and linkage to relevant users/caregivers.
+- **Document Repository Item**: Represents an uploaded document with metadata, extracted content summaries, and linkage to relevant users/caregivers. Persist normalized text and embedding vectors in Postgres and retain the original file within managed filesystem storage referenced by stored paths.
 - **Interaction Log**: Stores conversation exchanges, reminder deliveries, acknowledgements, and system-generated alerts for compliance tracking.
 
 ---
