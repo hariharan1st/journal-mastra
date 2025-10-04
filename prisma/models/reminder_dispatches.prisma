@@ -1,0 +1,23 @@
+enum DispatchStatus {
+  scheduled
+  sent
+  failed
+  missed
+  acknowledged
+}
+
+model ReminderDispatch {
+  id              String         @id @default(uuid()) @db.Uuid
+  reminderRuleId  String         @map("reminder_rule_id") @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  scheduledFor    DateTime       @map("scheduled_for") @db.Timestamptz
+  deliveredAt     DateTime?      @map("delivered_at") @db.Timestamptz
+  acknowledgedAt  DateTime?      @map("acknowledged_at") @db.Timestamptz
+  status          DispatchStatus @default(scheduled)
+  payload         Json           @db.JsonB
+
+  reminderRule ReminderRule @relation(fields: [reminderRuleId], references: [id], onDelete: Cascade)
+  user         UserProfile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reminder_dispatches")
+}

@@ -1,0 +1,25 @@
+enum FrequencyType {
+  hourly
+  daily  
+  weekly
+  as_needed
+}
+
+model TrackingCatalogueItem {
+  id               String        @id @default(uuid()) @db.Uuid
+  ruleSetId        String        @map("rule_set_id") @db.Uuid
+  slug             String        @unique @db.Text
+  displayName      String        @map("display_name") @db.Text
+  description      String        @db.Text
+  frequency        FrequencyType
+  reminderTemplate Json          @map("reminder_template") @db.JsonB
+  analyticsTags    String[]      @map("analytics_tags")
+
+  ruleSet                 AdminRuleSet              @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
+  trackingCatalogueFields TrackingCatalogueField[]
+  journalEntryTable       JournalEntryTable?
+  reminderRules           ReminderRule[]
+
+  @@unique([ruleSetId, slug])
+  @@map("tracking_catalogue_items")
+}

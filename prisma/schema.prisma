@@ -1,0 +1,26 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector]
+}
+
+// Modular model includes
+@@include("./models/admin_rule_sets.prisma")
+@@include("./models/tracking_catalogue_items.prisma")
+@@include("./models/tracking_catalogue_fields.prisma")
+@@include("./models/journal_entry_tables.prisma")
+@@include("./models/user_profiles.prisma")
+@@include("./models/caregiver_profiles.prisma")
+@@include("./models/reminder_rules.prisma")
+@@include("./models/reminder_dispatches.prisma")
+@@include("./models/documents.prisma")
+@@include("./models/document_embeddings.prisma")
+@@include("./models/audit_events.prisma")

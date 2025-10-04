@@ -1,0 +1,23 @@
+enum ActorType {
+  admin
+  user
+  system
+}
+
+model AuditEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  occurredAt  DateTime  @default(now()) @map("occurred_at") @db.Timestamptz
+  actorType   ActorType @map("actor_type")
+  actorId     String?   @map("actor_id") @db.Uuid
+  eventType   String    @map("event_type") @db.Text
+  resourceRef String    @map("resource_ref") @db.Text
+  payload     Json      @db.JsonB
+
+  // Polymorphic actor relations
+  adminRuleSet       AdminRuleSet?     @relation(fields: [actorId], references: [id])
+  userActor          UserProfile?      @relation("UserActor", fields: [actorId], references: [id])
+  caregiverActor     CaregiverProfile? @relation("CaregiverActor", fields: [actorId], references: [id])
+
+  @@index([eventType, occurredAt(sort: Desc)])
+  @@map("audit_events")
+}

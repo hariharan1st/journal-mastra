@@ -1,0 +1,22 @@
+enum ConsentStatus {
+  pending
+  granted
+  revoked
+}
+
+model UserProfile {
+  id                 String        @id @default(uuid()) @db.Uuid
+  telegramUserId     String        @unique @map("telegram_user_id") @db.Text
+  displayName        String        @map("display_name") @db.Text
+  timezone           String        @db.Text
+  consentStatus      ConsentStatus @map("consent_status") @default(pending)
+  consentRecordedAt  DateTime?     @map("consent_recorded_at") @db.Timestamptz
+  healthCoach        String?       @map("health_coach") @db.Uuid
+
+  healthCoachProfile   CaregiverProfile?   @relation(fields: [healthCoach], references: [id])
+  reminderDispatches   ReminderDispatch[]
+  documents            Document[]
+  auditEventsAsActor   AuditEvent[]        @relation("UserActor")
+
+  @@map("user_profiles")
+}

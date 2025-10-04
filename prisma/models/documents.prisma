@@ -1,0 +1,15 @@
+model Document {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  originalFilename String   @map("original_filename") @db.Text
+  storagePath      String   @map("storage_path") @db.Text
+  mimeType         String   @map("mime_type") @db.Text
+  uploadedAt       DateTime @default(now()) @map("uploaded_at") @db.Timestamptz
+  summary          String?  @db.Text
+  checksum         String   @db.Text
+
+  user               UserProfile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentEmbeddings DocumentEmbedding[]
+
+  @@map("documents")
+}
