@@ -5,8 +5,8 @@
 
 ## Task List
 
-- [ ] T001 Update `package.json` to add Prisma/PostgreSQL dependencies (`@prisma/client`, `prisma`, `pg`, `pgvector`) and npm scripts for `prisma generate`, `prisma migrate`, and test runner bootstrap. _(Depends on: none)_
-- [ ] T002 Initialize Prisma scaffolding by creating `prisma/schema.prisma` with Postgres datasource, client generator, and `@@include` statements for modular models. _(Depends on: T001)_
+- [x] T001 Update `package.json` to add Prisma/PostgreSQL dependencies (`@prisma/client`, `prisma`, `pg`, `pgvector`) and npm scripts for `prisma generate`, `prisma migrate`, and test runner bootstrap. _(Depends on: none)_
+- [] T002 Initialize Prisma scaffolding by creating `prisma/schema.prisma` with Postgres datasource, client generator, and `@@include` statements for modular models. Implement all the modular models as well. _(Depends on: T001)_
 - [ ] T003 Create shared Prisma client factory with telemetry hooks in `src/mastra/lib/prisma-client.ts` (plus barrel export if needed) loading connection settings from the environment. _(Depends on: T002)_
 - [ ] T004 [P] Define `admin_rule_sets` Prisma model, indexes, and publication status enum in `prisma/models/admin_rule_sets.prisma`. _(Depends on: T002)_
 - [ ] T005 [P] Define `tracking_catalogue_items` Prisma model with unique slug constraint in `prisma/models/tracking_catalogue_items.prisma`. _(Depends on: T002)_
