@@ -302,11 +302,20 @@ export class CatalogueSchemaTool {
     const checksum = this.calculateChecksum(request);
 
     // Create new rule set (let Prisma auto-generate the UUID)
+    // For system operations (non-UUID actorId), set publishedBy to null
+    const publishedBy =
+      actorId &&
+      actorId.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      )
+        ? actorId
+        : null;
+
     return await tx.adminRuleSet.create({
       data: {
         version: nextVersion,
         publishedAt: new Date(request.parsedAt),
-        publishedBy: actorId,
+        publishedBy,
         sourceText: request.sourceText,
         structuredConfig: {
           metrics: request.metrics,
