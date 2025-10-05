@@ -1,0 +1,258 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector, uuid_ossp(map: "uuid-ossp")]
+}
+
+// Admin Rule Sets
+enum RuleSetStatus {
+  draft
+  published
+  superseded
+}
+
+model AdminRuleSet {
+  id                String        @id @default(uuid()) @db.Uuid
+  version           Int           @default(autoincrement())
+  publishedAt       DateTime      @map("published_at") @db.Timestamptz
+  publishedBy       String?       @map("published_by") @db.Uuid
+  sourceText        String        @map("source_text") @db.Text
+  structuredConfig  Json          @map("structured_config") @db.JsonB
+  status            RuleSetStatus @default(draft)
+  checksum          String        @db.Text
+
+  publishedByCaregiverProfile CaregiverProfile?          @relation(fields: [publishedBy], references: [id])
+  trackingCatalogueItems      TrackingCatalogueItem[]
+  auditEvents                 AuditEvent[]
+
+  @@unique([version])
+  @@index([status, publishedAt(sort: Desc)])
+  @@map("admin_rule_sets")
+}
+
+// Audit Events
+enum ActorType {
+  admin
+  user
+  system
+}
+
+model AuditEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  occurredAt  DateTime  @default(now()) @map("occurred_at") @db.Timestamptz
+  actorType   ActorType @map("actor_type")
+  eventType   String    @map("event_type") @db.Text
+  resourceRef String    @map("resource_ref") @db.Text
+  payload     Json      @db.JsonB
+
+  // Separate actor ID fields to avoid foreign key conflicts
+  adminActorId     String? @map("admin_actor_id") @db.Uuid
+  userActorId      String? @map("user_actor_id") @db.Uuid
+  caregiverActorId String? @map("caregiver_actor_id") @db.Uuid
+
+  // Polymorphic actor relations using separate fields
+  adminRuleSet     AdminRuleSet?     @relation(fields: [adminActorId], references: [id])
+  userActor        UserProfile?      @relation("UserActor", fields: [userActorId], references: [id])
+  caregiverActor   CaregiverProfile? @relation("CaregiverActor", fields: [caregiverActorId], references: [id])
+
+  @@index([eventType, occurredAt(sort: Desc)])
+  @@map("audit_events")
+}
+
+// Caregiver Profiles
+enum CaregiverRole {
+  admin
+  caregiver
+}
+
+model CaregiverProfile {
+  id             String        @id @default(uuid()) @db.Uuid
+  role           CaregiverRole
+  telegramUserId String        @unique @map("telegram_user_id") @db.Text
+  displayName    String        @map("display_name") @db.Text
+  organization   String        @db.Text
+
+  publishedRuleSets      AdminRuleSet[]
+  managedUsers           UserProfile[]
+  auditEventsAsActor     AuditEvent[]   @relation("CaregiverActor")
+
+  @@map("caregiver_profiles")
+}
+
+// Document Embeddings
+model DocumentEmbedding {
+  id         String                     @id @default(uuid()) @db.Uuid
+  documentId String                     @map("document_id") @db.Uuid
+  chunkIndex Int                        @map("chunk_index")
+  content    String                     @db.Text
+  embedding  Unsupported("vector(1536)")
+  createdAt  DateTime                   @default(now()) @map("created_at") @db.Timestamptz
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_embeddings")
+}
+
+// Documents
+model Document {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  originalFilename String   @map("original_filename") @db.Text
+  storagePath      String   @map("storage_path") @db.Text
+  mimeType         String   @map("mime_type") @db.Text
+  uploadedAt       DateTime @default(now()) @map("uploaded_at") @db.Timestamptz
+  summary          String?  @db.Text
+  checksum         String   @db.Text
+
+  user               UserProfile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentEmbeddings DocumentEmbedding[]
+
+  @@map("documents")
+}
+
+// Journal Entry Tables
+model JournalEntryTable {
+  id              String   @id @default(uuid()) @db.Uuid
+  catalogueItemId String   @unique @map("catalogue_item_id") @db.Uuid
+  tableName       String   @unique @map("table_name") @db.Text
+  baseColumns     Json     @map("base_columns") @db.JsonB
+  schemaVersion   Int      @default(1) @map("schema_version")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  catalogueItem TrackingCatalogueItem @relation(fields: [catalogueItemId], references: [id], onDelete: Cascade)
+
+  @@map("journal_entry_tables")
+}
+
+// Reminder Dispatches
+enum DispatchStatus {
+  scheduled
+  sent
+  failed
+  missed
+  acknowledged
+}
+
+model ReminderDispatch {
+  id              String         @id @default(uuid()) @db.Uuid
+  reminderRuleId  String         @map("reminder_rule_id") @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  scheduledFor    DateTime       @map("scheduled_for") @db.Timestamptz
+  deliveredAt     DateTime?      @map("delivered_at") @db.Timestamptz
+  acknowledgedAt  DateTime?      @map("acknowledged_at") @db.Timestamptz
+  status          DispatchStatus @default(scheduled)
+  payload         Json           @db.JsonB
+
+  reminderRule ReminderRule @relation(fields: [reminderRuleId], references: [id], onDelete: Cascade)
+  user         UserProfile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reminder_dispatches")
+}
+
+// Reminder Rules
+enum DeliveryChannel {
+  user_bot
+  caregiver_bot
+}
+
+model ReminderRule {
+  id               String          @id @default(uuid()) @db.Uuid
+  catalogueItemId  String          @map("catalogue_item_id") @db.Uuid
+  scheduleCron     String          @map("schedule_cron") @db.Text
+  timezone         String          @db.Text
+  deliveryChannel  DeliveryChannel @map("delivery_channel")
+  escalationPolicy Json            @map("escalation_policy") @db.JsonB
+  active           Boolean         @default(true)
+
+  catalogueItem      TrackingCatalogueItem @relation(fields: [catalogueItemId], references: [id], onDelete: Cascade)
+  reminderDispatches ReminderDispatch[]
+
+  @@map("reminder_rules")
+}
+
+// Tracking Catalogue Fields
+enum DataType {
+  int
+  numeric
+  text
+  boolean
+  enum
+  timestamp
+}
+
+model TrackingCatalogueField {
+  id               String    @id @default(uuid()) @db.Uuid
+  catalogueItemId  String    @map("catalogue_item_id") @db.Uuid
+  columnName       String    @map("column_name") @db.Text
+  label            String    @db.Text
+  dataType         DataType  @map("data_type")
+  unitHints        String[]  @map("unit_hints")
+  required         Boolean   @default(false)
+  enumValues       String[]  @map("enum_values") @default([])
+  example          String?   @db.Text
+
+  catalogueItem TrackingCatalogueItem @relation(fields: [catalogueItemId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogueItemId, columnName])
+  @@map("tracking_catalogue_fields")
+}
+
+// Tracking Catalogue Items
+enum FrequencyType {
+  hourly
+  daily  
+  weekly
+  as_needed
+}
+
+model TrackingCatalogueItem {
+  id               String        @id @default(uuid()) @db.Uuid
+  ruleSetId        String        @map("rule_set_id") @db.Uuid
+  slug             String        @unique @db.Text
+  displayName      String        @map("display_name") @db.Text
+  description      String        @db.Text
+  frequency        FrequencyType
+  reminderTemplate Json          @map("reminder_template") @db.JsonB
+  analyticsTags    String[]      @map("analytics_tags")
+
+  ruleSet                 AdminRuleSet              @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
+  trackingCatalogueFields TrackingCatalogueField[]
+  journalEntryTable       JournalEntryTable?
+  reminderRules           ReminderRule[]
+
+  @@unique([ruleSetId, slug])
+  @@map("tracking_catalogue_items")
+}
+
+// User Profiles
+enum ConsentStatus {
+  pending
+  granted
+  revoked
+}
+
+model UserProfile {
+  id                 String        @id @default(uuid()) @db.Uuid
+  telegramUserId     String        @unique @map("telegram_user_id") @db.Text
+  displayName        String        @map("display_name") @db.Text
+  timezone           String        @db.Text
+  consentStatus      ConsentStatus @map("consent_status") @default(pending)
+  consentRecordedAt  DateTime?     @map("consent_recorded_at") @db.Timestamptz
+  healthCoach        String?       @map("health_coach") @db.Uuid
+
+  healthCoachProfile   CaregiverProfile?   @relation(fields: [healthCoach], references: [id])
+  reminderDispatches   ReminderDispatch[]
+  documents            Document[]
+  auditEventsAsActor   AuditEvent[]        @relation("UserActor")
+
+  @@map("user_profiles")
+}
