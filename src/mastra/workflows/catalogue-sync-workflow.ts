@@ -142,7 +142,7 @@ const finalizeSyncStep = createStep({
     const finalAuditEvent = await prisma.auditEvent.create({
       data: {
         actorType: "system",
-        actorId: "catalogue-sync-workflow",
+        // System events don't have an actor, so all actor fields are null
         eventType: "workflow.catalogue_sync_completed",
         resourceRef: `admin_rule_set:${inputData.schemaResponse.ruleSetId}`,
         payload: {

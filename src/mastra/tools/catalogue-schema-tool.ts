@@ -229,8 +229,7 @@ export class CatalogueSchemaTool {
           // Create audit event for the overall operation
           const auditEvent = await tx.auditEvent.create({
             data: {
-              actorType: "admin",
-              actorId,
+              actorType: "system",
               eventType: "catalogue.schema_update",
               resourceRef: `admin_rule_set:${ruleSet.id}`,
               payload: {
@@ -270,6 +269,9 @@ export class CatalogueSchemaTool {
               })) as any, // Type assertion needed due to union complexity
             auditEventId: auditEvent.id,
           };
+        },
+        {
+          timeout: 30000, // 30 seconds timeout for complex schema operations
         }
       );
     } catch (error) {
@@ -484,9 +486,11 @@ export const catalogueSchemaTool = createTool({
   inputSchema: CatalogueSchemaRequestSchema,
   outputSchema: CatalogueSchemaResponseSchema,
   execute: async ({ context }) => {
+    // Use a well-known system UUID for admin agent operations
+    const ADMIN_AGENT_UUID = "00000000-0000-0000-0000-000000000001";
     return await catalogueSchemaToolImpl.processSchemaUpdate(
       context,
-      "admin-agent" // Default actor ID for admin agent usage
+      ADMIN_AGENT_UUID
     );
   },
 });

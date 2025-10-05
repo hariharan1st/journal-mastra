@@ -187,8 +187,7 @@ export class ReminderRuleService {
     // Create audit event
     const auditEvent = await tx.auditEvent.create({
       data: {
-        actorType: "admin",
-        actorId: auditActor,
+        actorType: "system",
         eventType: "reminder.sync_rules",
         resourceRef: `catalogue_item:${catalogueItemId}`,
         payload: {

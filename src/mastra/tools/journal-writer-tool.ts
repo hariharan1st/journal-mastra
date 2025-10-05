@@ -495,7 +495,7 @@ export class JournalWriterTool {
     const auditEvent = await tx.auditEvent.create({
       data: {
         actorType: "user",
-        actorId: context.userId,
+        userActorId: context.userId,
         eventType: "journal.inserted",
         resourceRef: `${tableName}:${recordId}`,
         payload: {

@@ -269,7 +269,7 @@ async function createAdminRuleSet() {
 }
 
 // Run the bootstrap if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   createAdminRuleSet().catch((error) => {
     console.error("Unhandled error:", error);
     process.exit(1);

@@ -304,6 +304,7 @@ export class DynamicTableManager {
     const auditEvent = await tx.auditEvent.create({
       data: {
         actorType: "admin",
+        adminActorId: adminRuleSetId,
         eventType: "catalogue.table_created",
         resourceRef: action.tableName,
         payload: {
@@ -352,6 +353,7 @@ export class DynamicTableManager {
     const auditEvent = await tx.auditEvent.create({
       data: {
         actorType: "admin",
+        adminActorId: adminRuleSetId,
         eventType: "catalogue.table_altered",
         resourceRef: action.tableName,
         payload: {
@@ -384,6 +386,7 @@ export class DynamicTableManager {
     const auditEvent = await tx.auditEvent.create({
       data: {
         actorType: "admin",
+        adminActorId: adminRuleSetId,
         eventType: "catalogue.no_table_change",
         resourceRef: action.tableName,
         payload: {
