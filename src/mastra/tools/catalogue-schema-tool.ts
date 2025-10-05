@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createTool } from '@mastra/core/tools';
 import {
   buildCatalogueSchemaRequest,
   defaultCatalogueSchemaParser,
@@ -428,4 +429,18 @@ export class CatalogueSchemaTool {
 }
 
 // Export singleton instance
-export const catalogueSchemaTool = new CatalogueSchemaTool();
+export const catalogueSchemaToolImpl = new CatalogueSchemaTool();
+
+// Mastra tool wrapper
+export const catalogueSchemaTool = createTool({
+  id: 'catalogue-schema',
+  description: 'Parse admin text into catalogue schema updates and execute database changes',
+  inputSchema: CatalogueSchemaRequestSchema,
+  outputSchema: CatalogueSchemaResponseSchema,
+  execute: async ({ context }) => {
+    return await catalogueSchemaToolImpl.processSchemaUpdate(
+      context,
+      'admin-agent' // Default actor ID for admin agent usage
+    );
+  }
+});

@@ -30,7 +30,7 @@
 - [x] T023 Implement reminder rule synchronization service in `src/mastra/services/reminder-rule-service.ts` coordinating Prisma transactions. _(Depends on: T022)_
 - [x] T024 Implement `catalogueSchemaTool` in `src/mastra/tools/catalogue-schema-tool.ts` wiring parser, dynamic table manager, and reminder service to satisfy the contract. _(Depends on: T016, T021, T023)_
 - [x] T026 Implement `journalWriterTool` in `src/mastra/tools/journal-writer-tool.ts` to persist entries and return prompts per contract. _(Depends on: T024)_
-- [ ] T028 Implement admin Mastra agent in `src/mastra/agents/admin-catalogue-agent.ts` exposing catalogue schema and journal writer tools with Anthropic prompts. _(Depends on: T026)_
+- [x] T028 Implement admin Mastra agent in `src/mastra/agents/admin-catalogue-agent.ts` exposing catalogue schema and journal writer tools with Anthropic prompts. _(Depends on: T026)_
 - [ ] T030 Implement `src/mastra/workflows/catalogue-sync-workflow.ts` orchestrating schema publication, table creation, and reminder updates. _(Depends on: T029)_
 - [ ] T031 Update `src/mastra/index.ts` to register the admin agent/workflow, remove weather demo wiring, and ensure LibSQL telemetry coexists with Prisma-backed data. _(Depends on: T028, T030)_
 - [ ] T032 [P] Add integration bootstrap script `scripts/dev/create-admin-rule-set.ts` to seed a sample catalogue through the tools. _(Depends on: T026, T031)_
