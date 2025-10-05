@@ -1,4 +1,7 @@
 -- CreateExtension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- CreateExtension
 CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- CreateEnum
@@ -27,7 +30,7 @@ CREATE TYPE "ConsentStatus" AS ENUM ('pending', 'granted', 'revoked');
 
 -- CreateTable
 CREATE TABLE "admin_rule_sets" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "version" SERIAL NOT NULL,
     "published_at" TIMESTAMPTZ NOT NULL,
     "published_by" UUID,
@@ -41,7 +44,7 @@ CREATE TABLE "admin_rule_sets" (
 
 -- CreateTable
 CREATE TABLE "audit_events" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "occurred_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "actor_type" "ActorType" NOT NULL,
     "actor_id" UUID,
@@ -54,7 +57,7 @@ CREATE TABLE "audit_events" (
 
 -- CreateTable
 CREATE TABLE "caregiver_profiles" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "role" "CaregiverRole" NOT NULL,
     "telegram_user_id" TEXT NOT NULL,
     "display_name" TEXT NOT NULL,
@@ -65,7 +68,7 @@ CREATE TABLE "caregiver_profiles" (
 
 -- CreateTable
 CREATE TABLE "document_embeddings" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "document_id" UUID NOT NULL,
     "chunk_index" INTEGER NOT NULL,
     "content" TEXT NOT NULL,
@@ -77,7 +80,7 @@ CREATE TABLE "document_embeddings" (
 
 -- CreateTable
 CREATE TABLE "documents" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "user_id" UUID NOT NULL,
     "original_filename" TEXT NOT NULL,
     "storage_path" TEXT NOT NULL,
@@ -91,7 +94,7 @@ CREATE TABLE "documents" (
 
 -- CreateTable
 CREATE TABLE "journal_entry_tables" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "catalogue_item_id" UUID NOT NULL,
     "table_name" TEXT NOT NULL,
     "base_columns" JSONB NOT NULL,
@@ -104,7 +107,7 @@ CREATE TABLE "journal_entry_tables" (
 
 -- CreateTable
 CREATE TABLE "reminder_dispatches" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "reminder_rule_id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "scheduled_for" TIMESTAMPTZ NOT NULL,
@@ -118,7 +121,7 @@ CREATE TABLE "reminder_dispatches" (
 
 -- CreateTable
 CREATE TABLE "reminder_rules" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "catalogue_item_id" UUID NOT NULL,
     "schedule_cron" TEXT NOT NULL,
     "timezone" TEXT NOT NULL,
@@ -131,7 +134,7 @@ CREATE TABLE "reminder_rules" (
 
 -- CreateTable
 CREATE TABLE "tracking_catalogue_fields" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "catalogue_item_id" UUID NOT NULL,
     "column_name" TEXT NOT NULL,
     "label" TEXT NOT NULL,
@@ -146,7 +149,7 @@ CREATE TABLE "tracking_catalogue_fields" (
 
 -- CreateTable
 CREATE TABLE "tracking_catalogue_items" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "rule_set_id" UUID NOT NULL,
     "slug" TEXT NOT NULL,
     "display_name" TEXT NOT NULL,
@@ -160,7 +163,7 @@ CREATE TABLE "tracking_catalogue_items" (
 
 -- CreateTable
 CREATE TABLE "user_profiles" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT uuid_generate_v4(),
     "telegram_user_id" TEXT NOT NULL,
     "display_name" TEXT NOT NULL,
     "timezone" TEXT NOT NULL,

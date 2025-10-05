@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { ExtendedPrismaClient, withTransaction } from "../lib/prisma-client.js";
 import { z } from "zod";
 import fs from "fs/promises";
@@ -294,7 +294,7 @@ export class DynamicTableManager {
    * Execute CREATE TABLE action
    */
   private async executeCreateTable(
-    tx: PrismaClient,
+    tx: Prisma.TransactionClient,
     action: TableAction & { type: "create_table" },
     adminRuleSetId: string
   ): Promise<string> {
@@ -346,7 +346,7 @@ export class DynamicTableManager {
    * Execute ALTER TABLE ADD COLUMNS action
    */
   private async executeAlterTable(
-    tx: PrismaClient,
+    tx: Prisma.TransactionClient,
     action: TableAction & { type: "alter_table_add_columns" },
     adminRuleSetId: string
   ): Promise<string> {
@@ -394,7 +394,7 @@ export class DynamicTableManager {
    * Log no-change event for audit trail
    */
   private async logNoChangeEvent(
-    tx: PrismaClient,
+    tx: Prisma.TransactionClient,
     action: TableAction & { type: "no_change" },
     adminRuleSetId: string
   ): Promise<string> {

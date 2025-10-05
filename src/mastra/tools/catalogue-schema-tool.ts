@@ -301,7 +301,7 @@ export class CatalogueSchemaTool {
     // Create checksum for deduplication
     const checksum = this.calculateChecksum(request);
 
-    // Create new rule set
+    // Create new rule set (let Prisma auto-generate the UUID)
     return await tx.adminRuleSet.create({
       data: {
         version: nextVersion,
