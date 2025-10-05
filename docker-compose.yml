@@ -1,6 +1,6 @@
 services:
   db:
-    image: ankane/pgvector
+    image: pgvector/pgvector:pg15
     environment:
       POSTGRES_PASSWORD: 1234
       POSTGRES_DB: journal_mastra
