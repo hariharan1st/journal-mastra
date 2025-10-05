@@ -153,114 +153,127 @@ export class CatalogueSchemaTool {
     request: CatalogueSchemaRequest,
     actorId: string
   ): Promise<CatalogueSchemaResponse> {
-    // Validate request
-    const validatedRequest = CatalogueSchemaRequestSchema.parse(request);
+    try {
+      // Validate request
+      const validatedRequest = CatalogueSchemaRequestSchema.parse(request);
 
-    return await this.prisma.$transaction(
-      async (tx: Prisma.TransactionClient) => {
-        // Create or update admin rule set
-        const ruleSet = await this.createOrUpdateRuleSet(
-          tx,
-          validatedRequest,
-          actorId
-        );
-
-        // Process each metric to create/update catalogue items and tables
-        const tableActions: TableAction[] = [];
-        const reminderSyncResults: ReminderSyncAction[] = [];
-        const catalogueItemIds: string[] = [];
-
-        for (const metric of validatedRequest.metrics) {
-          // Create or update catalogue item
-          const catalogueItem = await this.upsertCatalogueItem(
+      return await this.prisma.$transaction(
+        async (tx: Prisma.TransactionClient) => {
+          // Create or update admin rule set
+          const ruleSet = await this.createOrUpdateRuleSet(
             tx,
-            ruleSet.id,
-            metric
-          );
-          catalogueItemIds.push(catalogueItem.id);
-
-          // Update catalogue fields
-          await this.upsertCatalogueFields(tx, catalogueItem.id, metric.fields);
-
-          // Plan and execute table operations
-          const tableAction = await this.tableManager.planTableChanges(
-            catalogueItem.id,
-            metric.fields.map((field) => ({
-              name: field.name,
-              dataType: field.dataType,
-              required: field.required,
-              enumValues: field.enumValues,
-              unit: field.unit,
-            })),
-            metric.slug
-          );
-
-          if (tableAction.type !== "no_change") {
-            await this.tableManager.executeTableAction(tableAction, ruleSet.id);
-          }
-
-          tableActions.push(tableAction);
-
-          // Sync reminder rules
-          const reminderResult = await this.reminderService.syncReminderRules(
-            catalogueItem.id,
-            {
-              schedule: metric.reminderPolicy.schedule,
-              timezone: metric.reminderPolicy.timezone,
-              escalation: metric.reminderPolicy.escalation,
-            },
+            validatedRequest,
             actorId
           );
 
-          reminderSyncResults.push(...reminderResult.actions);
-        }
+          // Process each metric to create/update catalogue items and tables
+          const tableActions: TableAction[] = [];
+          const reminderSyncResults: ReminderSyncAction[] = [];
+          const catalogueItemIds: string[] = [];
 
-        // Create audit event for the overall operation
-        const auditEvent = await tx.auditEvents.create({
-          data: {
-            actorType: "admin",
-            actorId,
-            eventType: "catalogue.schema_update",
-            resourceRef: `admin_rule_set:${ruleSet.id}`,
-            payload: {
-              ruleSetId: ruleSet.id,
-              version: ruleSet.version,
-              metricsCount: validatedRequest.metrics.length,
-              tableActions: tableActions.map((action) => ({
-                type: action.type,
-                tableName: action.tableName,
+          for (const metric of validatedRequest.metrics) {
+            // Create or update catalogue item
+            const catalogueItem = await this.upsertCatalogueItem(
+              tx,
+              ruleSet.id,
+              metric
+            );
+            catalogueItemIds.push(catalogueItem.id);
+
+            // Update catalogue fields
+            await this.upsertCatalogueFields(
+              tx,
+              catalogueItem.id,
+              metric.fields
+            );
+
+            // Plan and execute table operations
+            const tableAction = await this.tableManager.planTableChanges(
+              catalogueItem.id,
+              metric.fields.map((field) => ({
+                name: field.name,
+                dataType: field.dataType,
+                required: field.required,
+                enumValues: field.enumValues,
+                unit: field.unit,
               })),
-              reminderActions: reminderSyncResults.map((action) => ({
+              metric.slug
+            );
+
+            if (tableAction.type !== "no_change") {
+              await this.tableManager.executeTableAction(
+                tableAction,
+                ruleSet.id
+              );
+            }
+
+            tableActions.push(tableAction);
+
+            // Sync reminder rules
+            const reminderResult = await this.reminderService.syncReminderRules(
+              catalogueItem.id,
+              {
+                schedule: metric.reminderPolicy.schedule,
+                timezone: metric.reminderPolicy.timezone,
+                escalation: metric.reminderPolicy.escalation,
+              },
+              actorId
+            );
+
+            reminderSyncResults.push(...reminderResult.actions);
+          }
+
+          // Create audit event for the overall operation
+          const auditEvent = await tx.auditEvents.create({
+            data: {
+              actorType: "admin",
+              actorId,
+              eventType: "catalogue.schema_update",
+              resourceRef: `admin_rule_set:${ruleSet.id}`,
+              payload: {
+                ruleSetId: ruleSet.id,
+                version: ruleSet.version,
+                metricsCount: validatedRequest.metrics.length,
+                tableActions: tableActions.map((action) => ({
+                  type: action.type,
+                  tableName: action.tableName,
+                })),
+                reminderActions: reminderSyncResults.map((action) => ({
+                  type: action.type,
+                  reminderRuleId: action.reminderRuleId,
+                })),
+              },
+            },
+          });
+
+          // Build response
+          return {
+            ruleSetId: ruleSet.id,
+            version: ruleSet.version,
+            actions: tableActions.map((action) => ({
+              type: action.type,
+              tableName: action.tableName,
+              columns: action.type !== "no_change" ? action.columns : undefined,
+            })) as any, // Type assertion needed due to union complexity
+            reminderActions: reminderSyncResults
+              .filter((action) => action.type !== "no_change")
+              .map((action) => ({
                 type: action.type,
                 reminderRuleId: action.reminderRuleId,
-              })),
-            },
-          },
-        });
-
-        // Build response
-        return {
-          ruleSetId: ruleSet.id,
-          version: ruleSet.version,
-          actions: tableActions.map((action) => ({
-            type: action.type,
-            tableName: action.tableName,
-            columns: action.type !== "no_change" ? action.columns : undefined,
-          })) as any, // Type assertion needed due to union complexity
-          reminderActions: reminderSyncResults
-            .filter((action) => action.type !== "no_change")
-            .map((action) => ({
-              type: action.type,
-              reminderRuleId: action.reminderRuleId,
-              schedule:
-                action.type === "upsert_rule" ? action.schedule : undefined,
-              timezone:
-                action.type === "upsert_rule" ? action.timezone : undefined,
-            })) as any, // Type assertion needed due to union complexity
-          auditEventId: auditEvent.id,
-        };
-      }
-    );
+                schedule:
+                  action.type === "upsert_rule" ? action.schedule : undefined,
+                timezone:
+                  action.type === "upsert_rule" ? action.timezone : undefined,
+              })) as any, // Type assertion needed due to union complexity
+            auditEventId: auditEvent.id,
+          };
+        }
+      );
+    } catch (error) {
+      // Handle and rethrow errors
+      console.error("Error processing catalogue schema update:", error);
+      throw error;
+    }
   }
 
   /**
