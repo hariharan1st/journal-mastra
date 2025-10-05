@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.23",
+    "@ai-sdk/deepseek": "^1.0.20",
     "@mastra/core": "^0.20.0",
     "@mastra/libsql": "^0.15.1",
     "@mastra/loggers": "^0.10.15",
@@ -35,9 +36,9 @@
   },
   "devDependencies": {
     "@types/node": "^24.6.2",
-    "prisma": "^5.18.0",
     "mastra": "^0.14.1",
-    "vitest": "^1.6.0",
-    "typescript": "^5.9.3"
+    "prisma": "^5.18.0",
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.0"
   }
 }

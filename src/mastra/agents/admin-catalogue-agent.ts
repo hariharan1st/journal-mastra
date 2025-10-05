@@ -2,6 +2,7 @@ import { Agent } from "@mastra/core";
 import { catalogueSchemaTool } from "../tools/catalogue-schema-tool";
 import { journalWriterTool } from "../tools/journal-writer-tool";
 import { anthropic } from "@ai-sdk/anthropic";
+import { deepseek } from "@ai-sdk/deepseek";
 
 /**
  * Admin Catalogue Agent
@@ -39,7 +40,7 @@ When handling journal entries:
 
 Be precise, professional, and prioritize data integrity and user privacy.`,
 
-  model: anthropic("claude-3-5-sonnet-20241022"),
+  model: deepseek("deepseek-chat"),
 
   tools: {
     catalogueSchema: catalogueSchemaTool,
