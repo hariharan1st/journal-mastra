@@ -308,13 +308,24 @@ export class CatalogueSchemaTool {
 
     // Create new rule set (let Prisma auto-generate the UUID)
     // For system operations (non-UUID actorId), set publishedBy to null
-    const publishedBy =
+    // Also validate that the UUID exists in caregiver_profiles table
+    let publishedBy = null;
+    if (
       actorId &&
       actorId.match(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       )
-        ? actorId
-        : null;
+    ) {
+      // Verify that the caregiver exists
+      const caregiverExists = await tx.caregiverProfile.findUnique({
+        where: { id: actorId },
+        select: { id: true },
+      });
+
+      if (caregiverExists) {
+        publishedBy = actorId;
+      }
+    }
 
     return await tx.adminRuleSet.create({
       data: {
@@ -340,37 +351,45 @@ export class CatalogueSchemaTool {
     ruleSetId: string,
     metric: any
   ) {
-    return await tx.trackingCatalogueItem.upsert({
-      where: {
-        ruleSetId_slug: {
+    // Check if an item with this slug already exists (from any rule set)
+    const existingItem = await tx.trackingCatalogueItem.findUnique({
+      where: { slug: metric.slug },
+      select: { id: true, ruleSetId: true },
+    });
+
+    if (existingItem) {
+      // Update existing item to point to the new rule set
+      return await tx.trackingCatalogueItem.update({
+        where: { id: existingItem.id },
+        data: {
+          ruleSetId, // Point to the new rule set
+          displayName: metric.displayName,
+          description: metric.description,
+          analyticsTags: metric.analyticsTags,
+          frequency: "daily", // Default for now
+          reminderTemplate: {
+            schedule: metric.reminderPolicy.schedule,
+            timezone: metric.reminderPolicy.timezone,
+          },
+        },
+      });
+    } else {
+      // Create new item if it doesn't exist
+      return await tx.trackingCatalogueItem.create({
+        data: {
           ruleSetId,
           slug: metric.slug,
+          displayName: metric.displayName,
+          description: metric.description,
+          frequency: "daily", // Default
+          reminderTemplate: {
+            schedule: metric.reminderPolicy.schedule,
+            timezone: metric.reminderPolicy.timezone,
+          },
+          analyticsTags: metric.analyticsTags,
         },
-      },
-      update: {
-        displayName: metric.displayName,
-        description: metric.description,
-        analyticsTags: metric.analyticsTags,
-        // Note: frequency would be derived from reminderPolicy if needed
-        frequency: "daily", // Default for now
-        reminderTemplate: {
-          schedule: metric.reminderPolicy.schedule,
-          timezone: metric.reminderPolicy.timezone,
-        },
-      },
-      create: {
-        ruleSetId,
-        slug: metric.slug,
-        displayName: metric.displayName,
-        description: metric.description,
-        frequency: "daily", // Default
-        reminderTemplate: {
-          schedule: metric.reminderPolicy.schedule,
-          timezone: metric.reminderPolicy.timezone,
-        },
-        analyticsTags: metric.analyticsTags,
-      },
-    });
+      });
+    }
   }
 
   /**
