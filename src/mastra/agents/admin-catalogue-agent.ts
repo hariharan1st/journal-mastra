@@ -3,6 +3,8 @@ import { catalogueSchemaTool } from "../tools/catalogue-schema-tool";
 import { journalWriterTool } from "../tools/journal-writer-tool";
 import { anthropic } from "@ai-sdk/anthropic";
 import { deepseek } from "@ai-sdk/deepseek";
+import { ollama } from "../models/ollama";
+import { lmstudio } from "../models/lmstudio";
 
 /**
  * Admin Catalogue Agent
@@ -40,7 +42,10 @@ When handling journal entries:
 
 Be precise, professional, and prioritize data integrity and user privacy.`,
 
-  model: deepseek("deepseek-chat"),
+  // model: deepseek("deepseek-chat"),
+  // model: ollama("gpt-oss:20b"),
+  model: lmstudio("gpt-oss:20b"),
+  // model: lmstudio("qwen/qwen3-4b-2507"),
 
   tools: {
     catalogueSchema: catalogueSchemaTool,
