@@ -45,6 +45,7 @@ Be precise, professional, and prioritize data integrity and user privacy.`,
   // model: deepseek("deepseek-chat"),
   // model: ollama("gpt-oss:20b"),
   model: lmstudio("gpt-oss:20b"),
+  // model: lmstudio("text-embedding-indicconformer-tamil"),
   // model: lmstudio("qwen/qwen3-4b-2507"),
 
   tools: {
