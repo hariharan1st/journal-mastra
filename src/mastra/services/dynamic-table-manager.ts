@@ -189,44 +189,17 @@ export class DynamicTableManager {
   }
 
   /**
-   * Build columns for a new table including base columns
+   * Build field-specific columns for a table (base columns are handled separately)
    */
   private buildTableColumns(fields: FieldDefinition[]): ColumnSpec[] {
-    // Base columns that every journal table must have
-    const baseColumns: ColumnSpec[] = [
-      { name: "id", sqlType: "UUID", nullable: false },
-      { name: "user_id", sqlType: "UUID", nullable: false },
-      { name: "who_recorded", sqlType: "UUID", nullable: true },
-      { name: "source_message_id", sqlType: "TEXT", nullable: true },
-      { name: "submitted_at", sqlType: "TIMESTAMPTZ", nullable: false },
-      {
-        name: "recorded_at",
-        sqlType: "TIMESTAMPTZ",
-        nullable: false,
-        defaultExpression: "NOW()",
-      },
-      {
-        name: "health_week_label",
-        sqlType: "TEXT",
-        nullable: true,
-        defaultExpression: "'unspecified'",
-      },
-      {
-        name: "meta",
-        sqlType: "JSONB",
-        nullable: true,
-        defaultExpression: "'{}'",
-      },
-    ];
-
-    // Add field-specific columns
+    // Convert field definitions to column specifications
     const fieldColumns: ColumnSpec[] = fields.map((field) => ({
       name: field.name,
       sqlType: DynamicTableManager.mapDataTypeToSQL(field.dataType),
       nullable: !field.required,
     }));
 
-    return [...baseColumns, ...fieldColumns];
+    return fieldColumns;
   }
 
   /**
@@ -298,14 +271,16 @@ export class DynamicTableManager {
     action: TableAction & { type: "create_table" },
     adminRuleSetId: string
   ): Promise<string> {
-    // Generate CREATE TABLE SQL
-    const createTableSQL = this.generateCreateTableSQL(
+    // Generate CREATE TABLE SQL statements
+    const sqlStatements = this.generateCreateTableSQL(
       action.tableName,
       action.columns
     );
 
-    // Execute DDL
-    await tx.$executeRaw`${createTableSQL}`;
+    // Execute each DDL statement separately
+    for (const sql of sqlStatements) {
+      await tx.$executeRawUnsafe(sql);
+    }
 
     // Create journal entry table metadata
     await tx.journalEntryTable.create({
@@ -353,7 +328,7 @@ export class DynamicTableManager {
     // Execute ALTER TABLE for each new column
     for (const column of action.columns) {
       const alterSQL = this.generateAlterTableSQL(action.tableName, column);
-      await tx.$executeRaw`${alterSQL}`;
+      await tx.$executeRawUnsafe(alterSQL);
     }
 
     // Update schema version
@@ -426,9 +401,36 @@ export class DynamicTableManager {
   private generateCreateTableSQL(
     tableName: string,
     columns: ColumnSpec[]
-  ): string {
+  ): string[] {
     const sanitizedTableName = this.sanitizeIdentifier(tableName);
-    const columnDefinitions = columns
+
+    // Base columns that must exist on every journal table
+    const baseColumns = [
+      "  id UUID PRIMARY KEY DEFAULT gen_random_uuid()",
+      "  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE",
+      "  who_recorded UUID REFERENCES caregiver_profiles(id)",
+      "  source_message_id TEXT",
+      "  submitted_at TIMESTAMPTZ NOT NULL",
+      "  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+      "  health_week_label TEXT CHECK (health_week_label IN ('healthy', 'unhealthy', 'unspecified')) DEFAULT 'unspecified'",
+      "  meta JSONB DEFAULT '{}'",
+    ];
+
+    // Base column names to filter out from dynamic columns
+    const baseColumnNames = new Set([
+      "id",
+      "user_id",
+      "who_recorded",
+      "source_message_id",
+      "submitted_at",
+      "recorded_at",
+      "health_week_label",
+      "meta",
+    ]);
+
+    // Dynamic columns specific to this catalogue item (excluding base columns)
+    const dynamicColumns = columns
+      .filter((col) => !baseColumnNames.has(col.name))
       .map((col) => {
         const sanitizedName = this.sanitizeIdentifier(col.name);
         const nullClause = col.nullable ? "" : " NOT NULL";
@@ -436,21 +438,19 @@ export class DynamicTableManager {
           ? ` DEFAULT ${col.defaultExpression}`
           : "";
         return `  ${sanitizedName} ${col.sqlType}${nullClause}${defaultClause}`;
-      })
-      .join(",\n");
+      });
 
-    return `
-CREATE TABLE ${sanitizedTableName} (
-${columnDefinitions},
-  PRIMARY KEY (id),
-  CONSTRAINT fk_${sanitizedTableName}_user FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE,
-  CONSTRAINT fk_${sanitizedTableName}_caregiver FOREIGN KEY (who_recorded) REFERENCES caregiver_profiles(id),
-  CONSTRAINT chk_${sanitizedTableName}_health_week CHECK (health_week_label IN ('healthy', 'unhealthy', 'unspecified'))
-);
+    const allColumns = [...baseColumns, ...dynamicColumns].join(",\n");
 
-CREATE INDEX idx_${sanitizedTableName}_user_recorded ON ${sanitizedTableName} (user_id, recorded_at DESC);
-CREATE INDEX idx_${sanitizedTableName}_recorded ON ${sanitizedTableName} (recorded_at DESC);
-    `.trim();
+    const createTableSQL = `
+CREATE TABLE IF NOT EXISTS ${sanitizedTableName} (
+${allColumns}
+)`.trim();
+
+    const indexSQL1 = `CREATE INDEX IF NOT EXISTS idx_${sanitizedTableName}_user_recorded ON ${sanitizedTableName} (user_id, recorded_at DESC)`;
+    const indexSQL2 = `CREATE INDEX IF NOT EXISTS idx_${sanitizedTableName}_recorded ON ${sanitizedTableName} (recorded_at DESC)`;
+
+    return [createTableSQL, indexSQL1, indexSQL2];
   }
 
   /**
