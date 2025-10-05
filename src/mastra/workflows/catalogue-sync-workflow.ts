@@ -139,7 +139,7 @@ const finalizeSyncStep = createStep({
     const prisma = getPrismaClient();
 
     // Update any additional metadata or trigger post-sync actions
-    const finalAuditEvent = await prisma.auditEvents.create({
+    const finalAuditEvent = await prisma.auditEvent.create({
       data: {
         actorType: "workflow",
         actorId: "catalogue-sync-workflow",

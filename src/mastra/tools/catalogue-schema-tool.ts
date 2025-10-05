@@ -224,7 +224,7 @@ export class CatalogueSchemaTool {
           }
 
           // Create audit event for the overall operation
-          const auditEvent = await tx.auditEvents.create({
+          const auditEvent = await tx.auditEvent.create({
             data: {
               actorType: "admin",
               actorId,
@@ -280,18 +280,18 @@ export class CatalogueSchemaTool {
    * Create new admin rule set or update existing one
    */
   private async createOrUpdateRuleSet(
-    tx: any,
+    tx: Prisma.TransactionClient,
     request: CatalogueSchemaRequest,
     actorId: string
   ) {
     // Mark existing rule sets as superseded
-    await tx.adminRuleSets.updateMany({
+    await tx.adminRuleSet.updateMany({
       where: { status: "published" },
       data: { status: "superseded" },
     });
 
     // Calculate version number
-    const lastVersion = await tx.adminRuleSets.findFirst({
+    const lastVersion = await tx.adminRuleSet.findFirst({
       orderBy: { version: "desc" },
       select: { version: true },
     });
@@ -302,7 +302,7 @@ export class CatalogueSchemaTool {
     const checksum = this.calculateChecksum(request);
 
     // Create new rule set
-    return await tx.adminRuleSets.create({
+    return await tx.adminRuleSet.create({
       data: {
         version: nextVersion,
         publishedAt: new Date(request.parsedAt),
@@ -321,8 +321,12 @@ export class CatalogueSchemaTool {
   /**
    * Create or update catalogue item
    */
-  private async upsertCatalogueItem(tx: any, ruleSetId: string, metric: any) {
-    return await tx.trackingCatalogueItems.upsert({
+  private async upsertCatalogueItem(
+    tx: Prisma.TransactionClient,
+    ruleSetId: string,
+    metric: any
+  ) {
+    return await tx.trackingCatalogueItem.upsert({
       where: {
         ruleSetId_slug: {
           ruleSetId,
@@ -359,7 +363,7 @@ export class CatalogueSchemaTool {
    * Create or update catalogue fields
    */
   private async upsertCatalogueFields(
-    tx: any,
+    tx: Prisma.TransactionClient,
     catalogueItemId: string,
     fields: any[]
   ) {
@@ -367,7 +371,7 @@ export class CatalogueSchemaTool {
     // In a production system, you might want to mark fields as inactive instead
 
     for (const field of fields) {
-      await tx.trackingCatalogueFields.upsert({
+      await tx.trackingCatalogueField.upsert({
         where: {
           catalogueItemId_columnName: {
             catalogueItemId,

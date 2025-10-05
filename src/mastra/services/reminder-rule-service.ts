@@ -67,7 +67,7 @@ export class ReminderRuleService {
     return await this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         // Find existing reminder rules for this catalogue item
-        const existingRules = await tx.reminderRules.findMany({
+        const existingRules = await tx.reminderRule.findMany({
           where: { catalogueItemId },
         });
 
@@ -75,7 +75,7 @@ export class ReminderRuleService {
           // Disable all existing rules if no policy provided
           for (const rule of existingRules) {
             if (rule.active) {
-              await tx.reminderRules.update({
+              await tx.reminderRule.update({
                 where: { id: rule.id },
                 data: { active: false },
               });
@@ -101,7 +101,7 @@ export class ReminderRuleService {
                 JSON.stringify(reminderPolicy.escalation || {});
 
             if (needsUpdate) {
-              await tx.reminderRules.update({
+              await tx.reminderRule.update({
                 where: { id: existingActiveRule.id },
                 data: {
                   scheduleCron: reminderPolicy.schedule,
@@ -127,7 +127,7 @@ export class ReminderRuleService {
             }
           } else {
             // Create new rule
-            const newRule = await tx.reminderRules.create({
+            const newRule = await tx.reminderRule.create({
               data: {
                 catalogueItemId,
                 scheduleCron: reminderPolicy.schedule,
@@ -152,7 +152,7 @@ export class ReminderRuleService {
           // Disable any other active rules for this catalogue item
           for (const rule of existingRules) {
             if (rule.active && rule.id !== existingActiveRule?.id) {
-              await tx.reminderRules.update({
+              await tx.reminderRule.update({
                 where: { id: rule.id },
                 data: { active: false },
               });
@@ -166,7 +166,7 @@ export class ReminderRuleService {
         }
 
         // Create audit event
-        const auditEvent = await tx.auditEvents.create({
+        const auditEvent = await tx.auditEvent.create({
           data: {
             actorType: "admin",
             actorId: auditActor,
@@ -195,7 +195,7 @@ export class ReminderRuleService {
    * Get all active reminder rules for a catalogue item
    */
   async getActiveReminderRules(catalogueItemId: string) {
-    return await this.prisma.reminderRules.findMany({
+    return await this.prisma.reminderRule.findMany({
       where: {
         catalogueItemId,
         active: true,

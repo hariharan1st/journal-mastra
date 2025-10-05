@@ -164,7 +164,7 @@ export class JournalWriterTool {
     tx: Prisma.TransactionClient,
     userId: string
   ): Promise<void> {
-    const userProfile = await tx.user_profiles.findUnique({
+    const userProfile = await tx.userProfile.findUnique({
       where: { id: userId },
       select: { consent_status: true },
     });
@@ -196,7 +196,7 @@ export class JournalWriterTool {
     catalogueItem: { id: string; slug: string; display_name: string };
     journalTable: { table_name: string; schema_version: number };
   }> {
-    const catalogueItem = await tx.tracking_catalogue_items.findFirst({
+    const catalogueItem = await tx.trackingCatalogueItem.findFirst({
       where: {
         slug: catalogueItemSlug,
         // Only consider items from published rule sets
@@ -215,7 +215,7 @@ export class JournalWriterTool {
       );
     }
 
-    const journalTable = await tx.journal_entry_tables.findUnique({
+    const journalTable = await tx.journalEntryTable.findUnique({
       where: { catalogue_item_id: catalogueItem.id },
       select: { table_name: true, schema_version: true },
     });
@@ -246,7 +246,7 @@ export class JournalWriterTool {
     }>;
   }> {
     // Get field definitions from catalogue
-    const catalogueFields = await tx.tracking_catalogue_fields.findMany({
+    const catalogueFields = await tx.trackingCatalogueField.findMany({
       where: { catalogue_item_id: catalogueItemId },
       select: {
         column_name: true,
@@ -492,7 +492,7 @@ export class JournalWriterTool {
     recordId: string,
     normalizedFields: Array<{ name: string; value: any; sqlType: string }>
   ): Promise<string> {
-    const auditEvent = await tx.audit_events.create({
+    const auditEvent = await tx.auditEvent.create({
       data: {
         actor_type: "user",
         actor_id: context.userId,

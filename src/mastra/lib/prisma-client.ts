@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 // Logger interface for telemetry hooks
 interface Logger {
@@ -119,7 +119,7 @@ export async function disconnectPrisma(): Promise<void> {
  */
 export async function withTransaction<T>(
   client: ExtendedPrismaClient,
-  fn: (tx: PrismaClient) => Promise<T>,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
   logger?: Logger
 ): Promise<T> {
   try {
