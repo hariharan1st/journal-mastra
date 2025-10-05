@@ -31,10 +31,10 @@
 - [x] T024 Implement `catalogueSchemaTool` in `src/mastra/tools/catalogue-schema-tool.ts` wiring parser, dynamic table manager, and reminder service to satisfy the contract. _(Depends on: T016, T021, T023)_
 - [x] T026 Implement `journalWriterTool` in `src/mastra/tools/journal-writer-tool.ts` to persist entries and return prompts per contract. _(Depends on: T024)_
 - [x] T028 Implement admin Mastra agent in `src/mastra/agents/admin-catalogue-agent.ts` exposing catalogue schema and journal writer tools with Anthropic prompts. _(Depends on: T026)_
-- [ ] T030 Implement `src/mastra/workflows/catalogue-sync-workflow.ts` orchestrating schema publication, table creation, and reminder updates. _(Depends on: T029)_
-- [ ] T031 Update `src/mastra/index.ts` to register the admin agent/workflow, remove weather demo wiring, and ensure LibSQL telemetry coexists with Prisma-backed data. _(Depends on: T028, T030)_
-- [ ] T032 [P] Add integration bootstrap script `scripts/dev/create-admin-rule-set.ts` to seed a sample catalogue through the tools. _(Depends on: T026, T031)_
-- [ ] T033 [P] Update `specs/001-this-is-a/quickstart.md` with migration steps, seeding command, and admin prompt walkthrough. _(Depends on: T031)_
+- [x] T030 Implement `src/mastra/workflows/catalogue-sync-workflow.ts` orchestrating schema publication, table creation, and reminder updates. _(Depends on: T028)_
+- [x] T031 Update `src/mastra/index.ts` to register the admin agent/workflow, remove weather demo wiring, and ensure LibSQL telemetry coexists with Prisma-backed data. _(Depends on: T028, T030)_
+- [x] T032 [P] Add integration bootstrap script `scripts/dev/create-admin-rule-set.ts` to seed a sample catalogue through the tools. _(Depends on: T026, T031)_
+- [x] T033 [P] Update `specs/001-this-is-a/quickstart.md` with migration steps, seeding command, and admin prompt walkthrough. _(Depends on: T031)_
 - [ ] T034 [P] Extend `specs/001-this-is-a/manual-validation.md` with evidence steps for dynamic table creation and reminder updates. _(Depends on: T031)_
 - [ ] T035 [P] Document DDL guard rails and audit expectations in `docs/validations/001-this-is-a/catalogue-ddl.md`. _(Depends on: T021)_
 - [ ] T036 [P] Add performance and telemetry configuration for DDL/runtime paths in `src/mastra/lib/logging.ts`, wiring logger usage from tools and services. _(Depends on: T021, T023)_
