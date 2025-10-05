@@ -160,32 +160,40 @@ export class DynamicTableManager {
     return await withTransaction(
       this.prisma,
       async (tx) => {
-        let auditEventId: string;
-
-        if (action.type === "create_table") {
-          auditEventId = await this.executeCreateTable(
-            tx,
-            action,
-            adminRuleSetId
-          );
-        } else if (action.type === "alter_table_add_columns") {
-          auditEventId = await this.executeAlterTable(
-            tx,
-            action,
-            adminRuleSetId
-          );
-        } else {
-          auditEventId = await this.logNoChangeEvent(
-            tx,
-            action,
-            adminRuleSetId
-          );
-        }
-
-        return auditEventId;
+        return await this.executeTableActionWithTransaction(
+          tx,
+          action,
+          adminRuleSetId
+        );
       },
       this.logger
     );
+  }
+
+  /**
+   * Execute a table action within an existing transaction
+   */
+  async executeTableActionWithTransaction(
+    tx: Prisma.TransactionClient,
+    action: TableAction,
+    adminRuleSetId: string
+  ): Promise<string> {
+    this.logger?.info("Executing table action within transaction", {
+      type: action.type,
+      tableName: action.tableName,
+    });
+
+    let auditEventId: string;
+
+    if (action.type === "create_table") {
+      auditEventId = await this.executeCreateTable(tx, action, adminRuleSetId);
+    } else if (action.type === "alter_table_add_columns") {
+      auditEventId = await this.executeAlterTable(tx, action, adminRuleSetId);
+    } else {
+      auditEventId = await this.logNoChangeEvent(tx, action, adminRuleSetId);
+    }
+
+    return auditEventId;
   }
 
   /**

@@ -201,7 +201,8 @@ export class CatalogueSchemaTool {
             );
 
             if (tableAction.type !== "no_change") {
-              await this.tableManager.executeTableAction(
+              await this.tableManager.executeTableActionWithTransaction(
+                tx,
                 tableAction,
                 ruleSet.id
               );
