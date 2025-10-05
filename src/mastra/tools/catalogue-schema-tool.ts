@@ -211,15 +211,17 @@ export class CatalogueSchemaTool {
             tableActions.push(tableAction);
 
             // Sync reminder rules
-            const reminderResult = await this.reminderService.syncReminderRules(
-              catalogueItem.id,
-              {
-                schedule: metric.reminderPolicy.schedule,
-                timezone: metric.reminderPolicy.timezone,
-                escalation: metric.reminderPolicy.escalation,
-              },
-              actorId
-            );
+            const reminderResult =
+              await this.reminderService.syncReminderRulesWithTransaction(
+                tx,
+                catalogueItem.id,
+                {
+                  schedule: metric.reminderPolicy.schedule,
+                  timezone: metric.reminderPolicy.timezone,
+                  escalation: metric.reminderPolicy.escalation,
+                },
+                actorId
+              );
 
             reminderSyncResults.push(...reminderResult.actions);
           }

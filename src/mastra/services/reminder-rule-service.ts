@@ -62,133 +62,150 @@ export class ReminderRuleService {
     actions: ReminderSyncAction[];
     auditEventId: string;
   }> {
-    const actions: ReminderSyncAction[] = [];
-
     return await this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
-        // Find existing reminder rules for this catalogue item
-        const existingRules = await tx.reminderRule.findMany({
-          where: { catalogueItemId },
-        });
+        return await this.syncReminderRulesWithTransaction(
+          tx,
+          catalogueItemId,
+          reminderPolicy,
+          auditActor
+        );
+      }
+    );
+  }
 
-        if (!reminderPolicy) {
-          // Disable all existing rules if no policy provided
-          for (const rule of existingRules) {
-            if (rule.active) {
-              await tx.reminderRule.update({
-                where: { id: rule.id },
-                data: { active: false },
-              });
+  /**
+   * Sync reminder rules within an existing transaction
+   */
+  async syncReminderRulesWithTransaction(
+    tx: Prisma.TransactionClient,
+    catalogueItemId: string,
+    reminderPolicy: ReminderPolicy | null,
+    auditActor: string
+  ): Promise<{
+    actions: ReminderSyncAction[];
+    auditEventId: string;
+  }> {
+    const actions: ReminderSyncAction[] = [];
+    // Find existing reminder rules for this catalogue item
+    const existingRules = await tx.reminderRule.findMany({
+      where: { catalogueItemId },
+    });
 
-              actions.push({
-                type: "disable_rule",
-                reminderRuleId: rule.id,
-              });
-            }
-          }
-        } else {
-          // Check if we need to create or update a rule
-          const existingActiveRule = existingRules.find(
-            (rule: any) => rule.active
-          );
+    if (!reminderPolicy) {
+      // Disable all existing rules if no policy provided
+      for (const rule of existingRules) {
+        if (rule.active) {
+          await tx.reminderRule.update({
+            where: { id: rule.id },
+            data: { active: false },
+          });
 
-          if (existingActiveRule) {
-            // Check if update is needed
-            const needsUpdate =
-              existingActiveRule.scheduleCron !== reminderPolicy.schedule ||
-              existingActiveRule.timezone !== reminderPolicy.timezone ||
-              JSON.stringify(existingActiveRule.escalationPolicy) !==
-                JSON.stringify(reminderPolicy.escalation || {});
-
-            if (needsUpdate) {
-              await tx.reminderRule.update({
-                where: { id: existingActiveRule.id },
-                data: {
-                  scheduleCron: reminderPolicy.schedule,
-                  timezone: reminderPolicy.timezone,
-                  escalationPolicy: reminderPolicy.escalation || {},
-                },
-              });
-
-              actions.push({
-                type: "upsert_rule",
-                reminderRuleId: existingActiveRule.id,
-                catalogueItemId,
-                schedule: reminderPolicy.schedule,
-                timezone: reminderPolicy.timezone,
-                deliveryChannel: "user_bot", // Default channel
-                escalationPolicy: reminderPolicy.escalation,
-              });
-            } else {
-              actions.push({
-                type: "no_change",
-                reminderRuleId: existingActiveRule.id,
-              });
-            }
-          } else {
-            // Create new rule
-            const newRule = await tx.reminderRule.create({
-              data: {
-                catalogueItemId,
-                scheduleCron: reminderPolicy.schedule,
-                timezone: reminderPolicy.timezone,
-                deliveryChannel: "user_bot",
-                escalationPolicy: reminderPolicy.escalation || {},
-                active: true,
-              },
-            });
-
-            actions.push({
-              type: "upsert_rule",
-              reminderRuleId: newRule.id,
-              catalogueItemId,
-              schedule: reminderPolicy.schedule,
-              timezone: reminderPolicy.timezone,
-              deliveryChannel: "user_bot",
-              escalationPolicy: reminderPolicy.escalation,
-            });
-          }
-
-          // Disable any other active rules for this catalogue item
-          for (const rule of existingRules) {
-            if (rule.active && rule.id !== existingActiveRule?.id) {
-              await tx.reminderRule.update({
-                where: { id: rule.id },
-                data: { active: false },
-              });
-
-              actions.push({
-                type: "disable_rule",
-                reminderRuleId: rule.id,
-              });
-            }
-          }
+          actions.push({
+            type: "disable_rule",
+            reminderRuleId: rule.id,
+          });
         }
+      }
+    } else {
+      // Check if we need to create or update a rule
+      const existingActiveRule = existingRules.find((rule: any) => rule.active);
 
-        // Create audit event
-        const auditEvent = await tx.auditEvent.create({
-          data: {
-            actorType: "admin",
-            actorId: auditActor,
-            eventType: "reminder.sync_rules",
-            resourceRef: `catalogue_item:${catalogueItemId}`,
-            payload: {
-              catalogueItemId,
-              reminderPolicy,
-              actions: actions.map((action) => ({
-                type: action.type,
-                reminderRuleId: action.reminderRuleId,
-              })),
+      if (existingActiveRule) {
+        // Check if update is needed
+        const needsUpdate =
+          existingActiveRule.scheduleCron !== reminderPolicy.schedule ||
+          existingActiveRule.timezone !== reminderPolicy.timezone ||
+          JSON.stringify(existingActiveRule.escalationPolicy) !==
+            JSON.stringify(reminderPolicy.escalation || {});
+
+        if (needsUpdate) {
+          await tx.reminderRule.update({
+            where: { id: existingActiveRule.id },
+            data: {
+              scheduleCron: reminderPolicy.schedule,
+              timezone: reminderPolicy.timezone,
+              escalationPolicy: reminderPolicy.escalation || {},
             },
+          });
+
+          actions.push({
+            type: "upsert_rule",
+            reminderRuleId: existingActiveRule.id,
+            catalogueItemId,
+            schedule: reminderPolicy.schedule,
+            timezone: reminderPolicy.timezone,
+            deliveryChannel: "user_bot", // Default channel
+            escalationPolicy: reminderPolicy.escalation,
+          });
+        } else {
+          actions.push({
+            type: "no_change",
+            reminderRuleId: existingActiveRule.id,
+          });
+        }
+      } else {
+        // Create new rule
+        const newRule = await tx.reminderRule.create({
+          data: {
+            catalogueItemId,
+            scheduleCron: reminderPolicy.schedule,
+            timezone: reminderPolicy.timezone,
+            deliveryChannel: "user_bot",
+            escalationPolicy: reminderPolicy.escalation || {},
+            active: true,
           },
         });
 
-        return {
-          actions,
-          auditEventId: auditEvent.id,
-        };
+        actions.push({
+          type: "upsert_rule",
+          reminderRuleId: newRule.id,
+          catalogueItemId,
+          schedule: reminderPolicy.schedule,
+          timezone: reminderPolicy.timezone,
+          deliveryChannel: "user_bot",
+          escalationPolicy: reminderPolicy.escalation,
+        });
       }
-    );
+
+      // Disable any other active rules for this catalogue item
+      for (const rule of existingRules) {
+        if (rule.active && rule.id !== existingActiveRule?.id) {
+          await tx.reminderRule.update({
+            where: { id: rule.id },
+            data: { active: false },
+          });
+
+          actions.push({
+            type: "disable_rule",
+            reminderRuleId: rule.id,
+          });
+        }
+      }
+    }
+
+    // Create audit event
+    const auditEvent = await tx.auditEvent.create({
+      data: {
+        actorType: "admin",
+        actorId: auditActor,
+        eventType: "reminder.sync_rules",
+        resourceRef: `catalogue_item:${catalogueItemId}`,
+        payload: {
+          catalogueItemId,
+          reminderPolicy,
+          actions: actions.map((action) => ({
+            type: action.type,
+            reminderRuleId: action.reminderRuleId,
+          })),
+        },
+      },
+    });
+
+    return {
+      actions,
+      auditEventId: auditEvent.id,
+    };
   }
 
   /**
