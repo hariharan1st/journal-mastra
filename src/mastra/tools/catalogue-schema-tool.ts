@@ -17,7 +17,7 @@ import {
   ReminderPolicySchema,
 } from "../services/reminder-rule-service.js";
 import { getPrismaClient } from "../lib/prisma-client.js";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient, Prisma, DataType } from "@prisma/client";
 
 // Request schema matching the contract
 export const CatalogueSchemaRequestSchema = z.object({
@@ -369,6 +369,22 @@ export class CatalogueSchemaTool {
   }
 
   /**
+   * Map schema dataType to Prisma DataType enum
+   */
+  private mapDataTypeToPrisma(dataType: string): DataType {
+    const dataTypeMap: Record<string, DataType> = {
+      numeric: DataType.numeric,
+      integer: DataType.int,
+      boolean: DataType.boolean,
+      text: DataType.text,
+      enum: DataType.enum,
+      datetime: DataType.timestamp, // Map datetime to timestamp
+    };
+
+    return dataTypeMap[dataType] || DataType.text; // Default fallback
+  }
+
+  /**
    * Create or update catalogue fields
    */
   private async upsertCatalogueFields(
@@ -389,7 +405,7 @@ export class CatalogueSchemaTool {
         },
         update: {
           label: field.label,
-          dataType: field.dataType,
+          dataType: this.mapDataTypeToPrisma(field.dataType),
           unitHints: field.unit ? [field.unit] : [],
           required: field.required,
           enumValues: field.enumValues || [],
@@ -399,7 +415,7 @@ export class CatalogueSchemaTool {
           catalogueItemId,
           columnName: field.name,
           label: field.label,
-          dataType: field.dataType,
+          dataType: this.mapDataTypeToPrisma(field.dataType),
           unitHints: field.unit ? [field.unit] : [],
           required: field.required,
           enumValues: field.enumValues || [],

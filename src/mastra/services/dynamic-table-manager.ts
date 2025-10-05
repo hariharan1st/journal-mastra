@@ -222,7 +222,7 @@ export class DynamicTableManager {
     // Add field-specific columns
     const fieldColumns: ColumnSpec[] = fields.map((field) => ({
       name: field.name,
-      sqlType: this.mapDataTypeToSQL(field.dataType),
+      sqlType: DynamicTableManager.mapDataTypeToSQL(field.dataType),
       nullable: !field.required,
     }));
 
@@ -232,7 +232,7 @@ export class DynamicTableManager {
   /**
    * Map field data types to PostgreSQL types
    */
-  private mapDataTypeToSQL(dataType: string): string {
+  public static mapDataTypeToSQL(dataType: string): string {
     switch (dataType) {
       case "numeric":
         return "NUMERIC";
@@ -285,7 +285,7 @@ export class DynamicTableManager {
       .filter((field) => !existingSet.has(field.name))
       .map((field) => ({
         name: field.name,
-        sqlType: this.mapDataTypeToSQL(field.dataType),
+        sqlType: DynamicTableManager.mapDataTypeToSQL(field.dataType),
         nullable: !field.required,
       }));
   }
