@@ -50,6 +50,7 @@ npm run bootstrap:admin-rule-set
 ```
 
 This creates a complete demonstration environment with:
+
 - Sample health tracking categories (water intake, medication, exercise)
 - Dynamic journal tables with proper field schemas
 - Configured reminder rules with escalation policies
@@ -82,12 +83,13 @@ npm run dev
 The admin agent (`adminCatalogueAgent`) is now available and can process natural language catalogue configurations like:
 
 ```
-Add mood tracking: daily mood (1-10 scale), energy_level (low/medium/high), notes (optional text). 
+Add mood tracking: daily mood (1-10 scale), energy_level (low/medium/high), notes (optional text).
 Remind at 9 PM daily with caregiver escalation after 2 hours.
 Tag as mental_health, wellness.
 ```
 
 The agent will:
+
 1. Parse the natural language input using the `catalogueSchemaTool`
 2. Create/update catalogue metadata in PostgreSQL
 3. Generate dynamic journal tables (e.g., `journal_mood_tracking`)
@@ -101,12 +103,12 @@ Test journal entry processing with the `journalWriterTool`:
 ```json
 {
   "userId": "user123",
-  "telegramMessageId": "msg456", 
+  "telegramMessageId": "msg456",
   "receivedAt": "2024-10-04T10:30:00Z",
   "catalogueItemSlug": "water-intake",
   "parsedFields": [
-    {"name": "quantity", "value": 3, "confidence": 0.95},
-    {"name": "water_type", "value": "filtered", "confidence": 0.8}
+    { "name": "quantity", "value": 3, "confidence": 0.95 },
+    { "name": "water_type", "value": "filtered", "confidence": 0.8 }
   ],
   "freeformNotes": "Had water with lunch"
 }

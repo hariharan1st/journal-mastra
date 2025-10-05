@@ -1,7 +1,7 @@
-import { createWorkflow, createStep } from '@mastra/core/workflows';
-import { z } from 'zod';
-import { catalogueSchemaToolImpl } from '../tools/catalogue-schema-tool';
-import { getPrismaClient } from '../lib/prisma-client';
+import { createWorkflow, createStep } from "@mastra/core/workflows";
+import { z } from "zod";
+import { catalogueSchemaToolImpl } from "../tools/catalogue-schema-tool";
+import { getPrismaClient } from "../lib/prisma-client";
 
 // Input schema for the catalogue sync workflow
 const CatalogueSyncInputSchema = z.object({
@@ -20,7 +20,7 @@ const CatalogueSyncInputSchema = z.object({
           label: z.string(),
           dataType: z.enum([
             "numeric",
-            "integer", 
+            "integer",
             "boolean",
             "text",
             "enum",
@@ -54,8 +54,8 @@ type CatalogueSyncInput = z.infer<typeof CatalogueSyncInputSchema>;
 
 // Step 1: Validate input and prepare request
 const validateInputStep = createStep({
-  id: 'validate-input',
-  description: 'Validate input and prepare catalogue schema request',
+  id: "validate-input",
+  description: "Validate input and prepare catalogue schema request",
   inputSchema: CatalogueSyncInputSchema,
   outputSchema: z.object({
     validatedInput: CatalogueSyncInputSchema,
@@ -64,7 +64,7 @@ const validateInputStep = createStep({
   }),
   execute: async ({ inputData }) => {
     const validatedInput = CatalogueSyncInputSchema.parse(inputData);
-    
+
     // Prepare the request for the catalogue schema tool
     const request = {
       adminRuleSetId: validatedInput.adminRuleSetId,
@@ -84,8 +84,8 @@ const validateInputStep = createStep({
 
 // Step 2: Execute schema update through catalogue tool
 const executeSchemaUpdateStep = createStep({
-  id: 'execute-schema-update', 
-  description: 'Execute catalogue schema update through the tool',
+  id: "execute-schema-update",
+  description: "Execute catalogue schema update through the tool",
   inputSchema: z.object({
     validatedInput: CatalogueSyncInputSchema,
     catalogueRequest: z.any(),
@@ -112,8 +112,8 @@ const executeSchemaUpdateStep = createStep({
 
 // Step 3: Post-processing and notifications
 const finalizeSyncStep = createStep({
-  id: 'finalize-sync',
-  description: 'Finalize sync with audit trail and summary',
+  id: "finalize-sync",
+  description: "Finalize sync with audit trail and summary",
   inputSchema: z.object({
     validatedInput: CatalogueSyncInputSchema,
     catalogueRequest: z.any(),
@@ -137,22 +137,23 @@ const finalizeSyncStep = createStep({
   }),
   execute: async ({ inputData }) => {
     const prisma = getPrismaClient();
-    
+
     // Update any additional metadata or trigger post-sync actions
     const finalAuditEvent = await prisma.auditEvents.create({
       data: {
-        actorType: 'workflow',
-        actorId: 'catalogue-sync-workflow',
-        eventType: 'workflow.catalogue_sync_completed',
-        resourceType: 'admin_rule_set',
+        actorType: "workflow",
+        actorId: "catalogue-sync-workflow",
+        eventType: "workflow.catalogue_sync_completed",
+        resourceType: "admin_rule_set",
         resourceRef: `admin_rule_set:${inputData.schemaResponse.ruleSetId}`,
         payload: {
-          workflowResult: 'success',
+          workflowResult: "success",
           originalRuleSetId: inputData.validatedInput.adminRuleSetId,
           newRuleSetId: inputData.schemaResponse.ruleSetId,
           version: inputData.schemaResponse.version,
           tableActions: inputData.schemaResponse.actions.length,
-          reminderActions: inputData.schemaResponse.reminderActions?.length || 0,
+          reminderActions:
+            inputData.schemaResponse.reminderActions?.length || 0,
           executedBy: inputData.actorId,
         },
       },
@@ -167,9 +168,15 @@ const finalizeSyncStep = createStep({
       auditEventId: inputData.schemaResponse.auditEventId,
       workflowAuditEventId: finalAuditEvent.id,
       summary: {
-        tablesCreated: inputData.schemaResponse.actions.filter((a: any) => a.type === 'create_table').length,
-        tablesModified: inputData.schemaResponse.actions.filter((a: any) => a.type === 'alter_table_add_columns').length,
-        tablesUnchanged: inputData.schemaResponse.actions.filter((a: any) => a.type === 'no_change').length,
+        tablesCreated: inputData.schemaResponse.actions.filter(
+          (a: any) => a.type === "create_table"
+        ).length,
+        tablesModified: inputData.schemaResponse.actions.filter(
+          (a: any) => a.type === "alter_table_add_columns"
+        ).length,
+        tablesUnchanged: inputData.schemaResponse.actions.filter(
+          (a: any) => a.type === "no_change"
+        ).length,
         remindersUpdated: inputData.schemaResponse.reminderActions?.length || 0,
       },
     };
@@ -178,18 +185,18 @@ const finalizeSyncStep = createStep({
 
 /**
  * Catalogue Sync Workflow
- * 
+ *
  * Orchestrates the complete catalogue synchronization process:
  * 1. Schema publication and versioning
  * 2. Dynamic table creation/updates
  * 3. Reminder rule synchronization
  * 4. Audit trail creation
- * 
+ *
  * This workflow coordinates multiple services to ensure data consistency
  * when admin caregivers update the tracking catalogue configuration.
  */
 export const catalogueSyncWorkflow = createWorkflow({
-  id: 'catalogue-sync',
+  id: "catalogue-sync",
   inputSchema: CatalogueSyncInputSchema,
   outputSchema: z.object({
     success: z.boolean(),

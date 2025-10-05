@@ -11,6 +11,7 @@
 | MV-05    | Healthy vs. unhealthy week analysis       | Bot response + supporting metrics                        |
 | MV-06    | Document ingestion & semantic answer      | Transcript + cited document details                      |
 | MV-07    | Compliance + retention checks             | Audit event queries + consent state screenshot           |
+| MV-08    | Dynamic table evolution & schema changes  | Table alteration logs + field addition verification      |
 
 ## Detailed Flows
 
@@ -19,13 +20,44 @@
 1. Start Mastra dev server and connect admin Telegram bot.
 2. Send configuration prompt describing at least two metrics (water, medication) with field requirements.
 3. Observe bot confirmation summarizing parsed schema.
-4. Inspect Prisma migration logs / telemetry for recorded runtime DDL (e.g., `catalogueSchemaTool` info entry).
-5. Query Postgres:
-   - `SELECT slug, table_name FROM journal_entry_tables;`
-   - `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'journal_water_intake';`
-6. Check `audit_events` for `catalogue.schema_change` entry with column diff payload.
+4. Inspect Mastra logs for `catalogueSchemaTool` execution entries and dynamic table operations.
+5. Query Postgres to verify catalogue creation:
 
-**Expected Result**: Two catalogue items created, corresponding dynamic tables exist, audit log captured.
+   ```sql
+   -- Check catalogue items
+   SELECT slug, display_name, frequency FROM tracking_catalogue_items;
+
+   -- Check catalogue fields
+   SELECT ci.slug, cf.column_name, cf.data_type, cf.required
+   FROM tracking_catalogue_fields cf
+   JOIN tracking_catalogue_items ci ON cf.catalogue_item_id = ci.id;
+
+   -- Check admin rule set versioning
+   SELECT version, status, published_at FROM admin_rule_sets ORDER BY version DESC;
+   ```
+
+6. Verify dynamic table creation:
+
+   ```sql
+   -- Check that dynamic journal tables were created
+   SELECT table_name FROM information_schema.tables
+   WHERE table_name LIKE 'journal_%' AND table_schema = 'public';
+
+   -- Inspect table structure for water intake
+   SELECT column_name, data_type, is_nullable
+   FROM information_schema.columns
+   WHERE table_name = 'journal_water_intake';
+   ```
+
+7. Check audit events for schema operations:
+   ```sql
+   SELECT event_type, resource_type, payload
+   FROM audit_events
+   WHERE event_type LIKE '%catalogue%'
+   ORDER BY created_at DESC;
+   ```
+
+**Expected Result**: Catalogue items created with proper field definitions, dynamic tables exist with correct schemas, comprehensive audit trail captured.
 
 ### MV-02 — Log Journal Entries
 
@@ -37,14 +69,42 @@
 
 **Expected Result**: Parsed values match message content; bot acknowledges capture.
 
-### MV-03 — Reminder Delivery
+### MV-03 — Reminder Delivery & Rule Management
 
-1. Configure schedule for water intake reminders every 2 hours.
-2. Fast-forward scheduler (or trigger manual job) to send reminder.
-3. Confirm Telegram reminder delivered and acknowledgement tracked by responding "Done".
-4. Query `reminder_dispatches` for status progression from `scheduled` → `sent` → `acknowledged`.
+1. Verify reminder rules were created during catalogue setup:
 
-**Expected Result**: Reminder delivered within configured window, acknowledgement recorded.
+   ```sql
+   -- Check reminder rules configuration
+   SELECT rr.id, ci.slug, rr.schedule, rr.timezone, rr.enabled
+   FROM reminder_rules rr
+   JOIN tracking_catalogue_items ci ON rr.catalogue_item_id = ci.id;
+
+   -- Check escalation policies
+   SELECT escalation_config FROM reminder_rules WHERE escalation_config IS NOT NULL;
+   ```
+
+2. Configure schedule for water intake reminders every 2 hours (or use bootstrap schedule).
+3. Fast-forward scheduler (or trigger manual job) to send reminder.
+4. Confirm Telegram reminder delivered and acknowledgement tracked by responding "Done".
+5. Query `reminder_dispatches` for status progression:
+   ```sql
+   SELECT rd.status, rd.scheduled_at, rd.sent_at, rd.acknowledged_at,
+          ci.slug as category, rr.schedule
+   FROM reminder_dispatches rd
+   JOIN reminder_rules rr ON rd.reminder_rule_id = rr.id
+   JOIN tracking_catalogue_items ci ON rr.catalogue_item_id = ci.id
+   ORDER BY rd.scheduled_at DESC;
+   ```
+6. Test reminder rule updates by sending admin agent a configuration change (e.g., changing reminder frequency).
+7. Verify that reminder rules are properly synchronized:
+   ```sql
+   -- Check for reminder sync audit events
+   SELECT payload FROM audit_events
+   WHERE event_type = 'reminder.rules_synced'
+   ORDER BY created_at DESC LIMIT 5;
+   ```
+
+**Expected Result**: Reminder rules properly configured, delivered within scheduled windows, acknowledgements recorded, rule updates synchronized correctly.
 
 ### MV-04 — Historical Summary Query
 
@@ -82,6 +142,54 @@
 4. Export audit log subset for compliance review using Prisma.
 
 **Expected Result**: Consent state enforced, audit events recorded, unauthorized access blocked.
+
+### MV-08 — Dynamic Table Evolution & Schema Changes
+
+1. **Test additive schema changes**: Send admin agent a configuration that adds new fields to existing categories:
+   ```
+   Update water intake tracking to include: temperature (hot/cold/room), flavor (plain/lemon/mint), container_type (glass/bottle/cup)
+   ```
+2. Verify that the catalogue schema tool detects the changes and plans table alterations:
+   ```sql
+   -- Check that new fields were added to catalogue
+   SELECT column_name, data_type, required
+   FROM tracking_catalogue_fields cf
+   JOIN tracking_catalogue_items ci ON cf.catalogue_item_id = ci.id
+   WHERE ci.slug = 'water-intake'
+   ORDER BY cf.created_at;
+   ```
+3. Confirm dynamic table was altered (not recreated):
+   ```sql
+   -- Verify new columns were added to existing table
+   SELECT column_name, data_type, is_nullable, column_default
+   FROM information_schema.columns
+   WHERE table_name = 'journal_water_intake'
+   ORDER BY ordinal_position;
+   ```
+4. **Test no-change detection**: Send identical configuration again and verify no DDL operations occur:
+   ```sql
+   -- Check audit events for no-change detection
+   SELECT payload->>'tableActions' as actions
+   FROM audit_events
+   WHERE event_type = 'catalogue.schema_update'
+   ORDER BY created_at DESC LIMIT 1;
+   ```
+5. **Test new category addition**: Add completely new tracking category and verify table creation:
+   ```
+   Add sleep tracking: bedtime (datetime), wake_time (datetime), sleep_quality (1-10), dream_notes (optional text).
+   Remind at 10 PM daily for bedtime logging.
+   ```
+6. Verify comprehensive audit trail captures all operations:
+   ```sql
+   -- Check complete workflow audit trail
+   SELECT actor_type, event_type, resource_type,
+          payload->>'summary' as operation_summary
+   FROM audit_events
+   WHERE created_at >= NOW() - INTERVAL '1 hour'
+   ORDER BY created_at;
+   ```
+
+**Expected Result**: Schema evolution is additive-only, existing data preserved, proper audit trails for all DDL operations, no-change scenarios handled efficiently.
 
 ## Evidence Packaging
 

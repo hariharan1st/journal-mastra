@@ -1,20 +1,20 @@
 #!/usr/bin/env tsx
 
-import { catalogueSchemaToolImpl } from '../../src/mastra/tools/catalogue-schema-tool';
-import { getPrismaClient } from '../../src/mastra/lib/prisma-client';
+import { catalogueSchemaToolImpl } from "../../src/mastra/tools/catalogue-schema-tool";
+import { getPrismaClient } from "../../src/mastra/lib/prisma-client";
 
 /**
  * Bootstrap Script: Create Admin Rule Set
- * 
+ *
  * Creates a sample admin rule set through the catalogue schema tool
  * to demonstrate the complete journaling system functionality.
- * 
+ *
  * This script:
- * 1. Creates a sample health tracking catalogue 
+ * 1. Creates a sample health tracking catalogue
  * 2. Sets up dynamic tables for water, medication, and exercise tracking
  * 3. Configures reminder rules with escalation policies
  * 4. Demonstrates the complete tool chain
- * 
+ *
  * Usage:
  *   npm run bootstrap:admin-rule-set
  *   or
@@ -51,7 +51,7 @@ I want to set up health tracking for our patients with the following categories:
 `;
 
 async function createAdminRuleSet() {
-  console.log('🚀 Starting Admin Rule Set Bootstrap...\n');
+  console.log("🚀 Starting Admin Rule Set Bootstrap...\n");
 
   try {
     // Prepare the catalogue request
@@ -61,113 +61,113 @@ async function createAdminRuleSet() {
       sourceText: SAMPLE_ADMIN_TEXT,
       metrics: [
         {
-          slug: 'water-intake',
-          displayName: 'Water Intake',
-          description: 'Daily water consumption tracking',
+          slug: "water-intake",
+          displayName: "Water Intake",
+          description: "Daily water consumption tracking",
           fields: [
             {
-              name: 'quantity',
-              label: 'Number of glasses',
-              dataType: 'integer' as const,
+              name: "quantity",
+              label: "Number of glasses",
+              dataType: "integer" as const,
               required: true,
             },
             {
-              name: 'water_type',
-              label: 'Type of water',
-              dataType: 'enum' as const,
-              enumValues: ['tap', 'bottled', 'filtered'],
+              name: "water_type",
+              label: "Type of water",
+              dataType: "enum" as const,
+              enumValues: ["tap", "bottled", "filtered"],
               required: false,
             },
             {
-              name: 'time_consumed',
-              label: 'Time consumed',
-              dataType: 'datetime' as const,
+              name: "time_consumed",
+              label: "Time consumed",
+              dataType: "datetime" as const,
               required: false,
             },
           ],
           reminderPolicy: {
-            schedule: '0 8,14,20 * * *', // 8 AM, 2 PM, 8 PM daily
-            timezone: 'America/New_York',
+            schedule: "0 8,14,20 * * *", // 8 AM, 2 PM, 8 PM daily
+            timezone: "America/New_York",
             escalation: {
               notifyCaregiverAfterMinutes: 60,
             },
           },
-          analyticsTags: ['hydration', 'wellness'],
+          analyticsTags: ["hydration", "wellness"],
         },
         {
-          slug: 'medication',
-          displayName: 'Medication Adherence',
-          description: 'Daily medication tracking and adherence monitoring',
+          slug: "medication",
+          displayName: "Medication Adherence",
+          description: "Daily medication tracking and adherence monitoring",
           fields: [
             {
-              name: 'medication_name',
-              label: 'Medication name',
-              dataType: 'text' as const,
+              name: "medication_name",
+              label: "Medication name",
+              dataType: "text" as const,
               required: true,
             },
             {
-              name: 'dosage',
-              label: 'Dosage taken',
-              dataType: 'text' as const,
+              name: "dosage",
+              label: "Dosage taken",
+              dataType: "text" as const,
               required: true,
             },
             {
-              name: 'taken',
-              label: 'Medication taken',
-              dataType: 'boolean' as const,
+              name: "taken",
+              label: "Medication taken",
+              dataType: "boolean" as const,
               required: true,
             },
             {
-              name: 'side_effects',
-              label: 'Side effects noted',
-              dataType: 'text' as const,
+              name: "side_effects",
+              label: "Side effects noted",
+              dataType: "text" as const,
               required: false,
             },
           ],
           reminderPolicy: {
-            schedule: '0 9,18 * * *', // 9 AM, 6 PM daily
-            timezone: 'America/New_York',
+            schedule: "0 9,18 * * *", // 9 AM, 6 PM daily
+            timezone: "America/New_York",
             escalation: {
               notifyCaregiverAfterMinutes: 30,
               notifyAdminAfterMinutes: 120,
             },
           },
-          analyticsTags: ['medication', 'compliance', 'safety'],
+          analyticsTags: ["medication", "compliance", "safety"],
         },
         {
-          slug: 'exercise',
-          displayName: 'Exercise Activity',
-          description: 'Weekly exercise and physical activity tracking',
+          slug: "exercise",
+          displayName: "Exercise Activity",
+          description: "Weekly exercise and physical activity tracking",
           fields: [
             {
-              name: 'activity_type',
-              label: 'Type of activity',
-              dataType: 'enum' as const,
-              enumValues: ['walking', 'swimming', 'yoga', 'other'],
+              name: "activity_type",
+              label: "Type of activity",
+              dataType: "enum" as const,
+              enumValues: ["walking", "swimming", "yoga", "other"],
               required: true,
             },
             {
-              name: 'duration_minutes',
-              label: 'Duration in minutes',
-              dataType: 'integer' as const,
+              name: "duration_minutes",
+              label: "Duration in minutes",
+              dataType: "integer" as const,
               required: true,
             },
             {
-              name: 'intensity',
-              label: 'Exercise intensity',
-              dataType: 'enum' as const,
-              enumValues: ['low', 'medium', 'high'],
+              name: "intensity",
+              label: "Exercise intensity",
+              dataType: "enum" as const,
+              enumValues: ["low", "medium", "high"],
               required: true,
             },
           ],
           reminderPolicy: {
-            schedule: '0 10 * * 0', // Sunday at 10 AM
-            timezone: 'America/New_York',
+            schedule: "0 10 * * 0", // Sunday at 10 AM
+            timezone: "America/New_York",
             escalation: {
               notifyCaregiverAfterMinutes: 1440, // 1 day
             },
           },
-          analyticsTags: ['exercise', 'wellness', 'mental_health'],
+          analyticsTags: ["exercise", "wellness", "mental_health"],
         },
       ],
       retention: {
@@ -176,16 +176,16 @@ async function createAdminRuleSet() {
       },
     };
 
-    console.log('📝 Processing catalogue configuration...');
-    
+    console.log("📝 Processing catalogue configuration...");
+
     // Execute the catalogue schema tool
     const response = await catalogueSchemaToolImpl.processSchemaUpdate(
       catalogueRequest,
-      'bootstrap-script'
+      "bootstrap-script"
     );
 
-    console.log('✅ Admin Rule Set created successfully!\n');
-    console.log('📊 Results:');
+    console.log("✅ Admin Rule Set created successfully!\n");
+    console.log("📊 Results:");
     console.log(`   Rule Set ID: ${response.ruleSetId}`);
     console.log(`   Version: ${response.version}`);
     console.log(`   Tables affected: ${response.actions.length}`);
@@ -194,26 +194,30 @@ async function createAdminRuleSet() {
 
     // Display table actions
     if (response.actions.length > 0) {
-      console.log('🗃️  Database Changes:');
+      console.log("🗃️  Database Changes:");
       response.actions.forEach((action: any) => {
         switch (action.type) {
-          case 'create_table':
+          case "create_table":
             console.log(`   ➕ Created table: ${action.tableName}`);
             if (action.columns) {
               action.columns.forEach((col: any) => {
-                console.log(`      - ${col.name}: ${col.sqlType}${col.nullable ? ' (nullable)' : ''}`);
+                console.log(
+                  `      - ${col.name}: ${col.sqlType}${col.nullable ? " (nullable)" : ""}`
+                );
               });
             }
             break;
-          case 'alter_table_add_columns':
+          case "alter_table_add_columns":
             console.log(`   🔧 Modified table: ${action.tableName}`);
             if (action.columns) {
               action.columns.forEach((col: any) => {
-                console.log(`      + Added ${col.name}: ${col.sqlType}${col.nullable ? ' (nullable)' : ''}`);
+                console.log(
+                  `      + Added ${col.name}: ${col.sqlType}${col.nullable ? " (nullable)" : ""}`
+                );
               });
             }
             break;
-          case 'no_change':
+          case "no_change":
             console.log(`   ✓ No changes needed: ${action.tableName}`);
             break;
         }
@@ -223,14 +227,16 @@ async function createAdminRuleSet() {
 
     // Display reminder actions
     if (response.reminderActions && response.reminderActions.length > 0) {
-      console.log('⏰ Reminder Rules:');
+      console.log("⏰ Reminder Rules:");
       response.reminderActions.forEach((action: any) => {
         switch (action.type) {
-          case 'upsert_rule':
+          case "upsert_rule":
             console.log(`   📅 Set reminder: ${action.reminderRuleId}`);
-            console.log(`      Schedule: ${action.schedule} (${action.timezone})`);
+            console.log(
+              `      Schedule: ${action.schedule} (${action.timezone})`
+            );
             break;
-          case 'disable_rule':
+          case "disable_rule":
             console.log(`   ❌ Disabled rule: ${action.reminderRuleId}`);
             break;
         }
@@ -238,23 +244,22 @@ async function createAdminRuleSet() {
       console.log();
     }
 
-    console.log('🎉 Bootstrap completed! The system is ready for journaling.');
-    console.log('\nNext steps:');
-    console.log('1. Start the Mastra service: npm run dev');
-    console.log('2. Test with admin agent configuration');
-    console.log('3. Try journal entries for the configured categories');
-
+    console.log("🎉 Bootstrap completed! The system is ready for journaling.");
+    console.log("\nNext steps:");
+    console.log("1. Start the Mastra service: npm run dev");
+    console.log("2. Test with admin agent configuration");
+    console.log("3. Try journal entries for the configured categories");
   } catch (error) {
-    console.error('❌ Bootstrap failed:', error);
-    
+    console.error("❌ Bootstrap failed:", error);
+
     if (error instanceof Error) {
-      console.error('\nError details:', error.message);
+      console.error("\nError details:", error.message);
       if (error.stack) {
-        console.error('\nStack trace:');
+        console.error("\nStack trace:");
         console.error(error.stack);
       }
     }
-    
+
     process.exit(1);
   } finally {
     // Ensure Prisma connection is closed
@@ -266,7 +271,7 @@ async function createAdminRuleSet() {
 // Run the bootstrap if this file is executed directly
 if (require.main === module) {
   createAdminRuleSet().catch((error) => {
-    console.error('Unhandled error:', error);
+    console.error("Unhandled error:", error);
     process.exit(1);
   });
 }
