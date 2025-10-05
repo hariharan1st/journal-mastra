@@ -1,21 +1,21 @@
-import { Agent } from '@mastra/core';
-import { catalogueSchemaTool } from '../tools/catalogue-schema-tool';
-import { journalWriterTool } from '../tools/journal-writer-tool';
-import { anthropic } from '@ai-sdk/anthropic';
+import { Agent } from "@mastra/core";
+import { catalogueSchemaTool } from "../tools/catalogue-schema-tool";
+import { journalWriterTool } from "../tools/journal-writer-tool";
+import { anthropic } from "@ai-sdk/anthropic";
 
 /**
  * Admin Catalogue Agent
- * 
+ *
  * Handles administrative tasks for catalogue configuration and journal management.
  * Exposes tools for:
  * - Parsing and implementing catalogue schema changes
  * - Writing journal entries and managing follow-up prompts
- * 
+ *
  * Used by the admin Telegram bot to process natural language configurations
  * into structured database operations.
  */
 export const adminCatalogueAgent = new Agent({
-  name: 'admin-catalogue',
+  name: "admin-catalogue",
   instructions: `You are an administrative assistant for a health and wellness journaling system.
 
 Your primary responsibilities:
@@ -38,9 +38,9 @@ When handling journal entries:
 - Structure data according to the active catalogue schema
 
 Be precise, professional, and prioritize data integrity and user privacy.`,
-  
-  model: anthropic('claude-3-5-sonnet-20241022'),
-  
+
+  model: anthropic("claude-3-5-sonnet-20241022"),
+
   tools: {
     catalogueSchema: catalogueSchemaTool,
     journalWriter: journalWriterTool,

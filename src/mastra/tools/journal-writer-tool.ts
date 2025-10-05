@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTool } from '@mastra/core/tools';
+import { createTool } from "@mastra/core/tools";
 import { getPrismaClient } from "../lib/prisma-client.js";
 import { PrismaClient, Prisma } from "@prisma/client";
 
@@ -573,11 +573,11 @@ export async function executeJournalWriterTool(
 
 // Mastra tool wrapper
 export const journalWriterTool = createTool({
-  id: 'journal-writer',
-  description: 'Process and persist journal entries with follow-up prompts',
+  id: "journal-writer",
+  description: "Process and persist journal entries with follow-up prompts",
   inputSchema: JournalWriterRequestSchema,
   outputSchema: JournalWriterResponseSchema,
   execute: async ({ context }) => {
     return await executeJournalWriterTool(context);
-  }
+  },
 });
