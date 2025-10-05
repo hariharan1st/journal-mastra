@@ -201,7 +201,7 @@ export class ReminderRuleService {
         active: true,
       },
       orderBy: {
-        createdAt: "desc",
+        id: "desc",
       },
     });
   }

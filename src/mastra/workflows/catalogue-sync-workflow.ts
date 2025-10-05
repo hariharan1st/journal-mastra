@@ -141,10 +141,9 @@ const finalizeSyncStep = createStep({
     // Update any additional metadata or trigger post-sync actions
     const finalAuditEvent = await prisma.auditEvent.create({
       data: {
-        actorType: "workflow",
+        actorType: "system",
         actorId: "catalogue-sync-workflow",
         eventType: "workflow.catalogue_sync_completed",
-        resourceType: "admin_rule_set",
         resourceRef: `admin_rule_set:${inputData.schemaResponse.ruleSetId}`,
         payload: {
           workflowResult: "success",

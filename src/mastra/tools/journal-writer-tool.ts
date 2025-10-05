@@ -120,7 +120,7 @@ export class JournalWriterTool {
           // Step 4: Insert journal entry
           const insertedRecordId = await this.insertJournalEntry(
             tx,
-            journalTable.table_name,
+            journalTable.tableName,
             context,
             normalizedFields
           );
@@ -129,13 +129,13 @@ export class JournalWriterTool {
           const auditEventId = await this.createAuditEvent(
             tx,
             context,
-            journalTable.table_name,
+            journalTable.tableName,
             insertedRecordId,
             normalizedFields
           );
 
           return {
-            journalTable: journalTable.table_name,
+            journalTable: journalTable.tableName,
             insertedRecordId,
             normalizedFields: normalizedFields.map(({ name, value }) => ({
               name,
@@ -166,7 +166,7 @@ export class JournalWriterTool {
   ): Promise<void> {
     const userProfile = await tx.userProfile.findUnique({
       where: { id: userId },
-      select: { consent_status: true },
+      select: { consentStatus: true },
     });
 
     if (!userProfile) {
@@ -177,7 +177,7 @@ export class JournalWriterTool {
       );
     }
 
-    if (userProfile.consent_status !== "granted") {
+    if (userProfile.consentStatus !== "granted") {
       throw new JournalWriterToolError(
         "CONSENT_REVOKED",
         "User has not granted consent for data collection",
@@ -193,18 +193,18 @@ export class JournalWriterTool {
     tx: Prisma.TransactionClient,
     catalogueItemSlug: string
   ): Promise<{
-    catalogueItem: { id: string; slug: string; display_name: string };
-    journalTable: { table_name: string; schema_version: number };
+    catalogueItem: { id: string; slug: string; displayName: string };
+    journalTable: { tableName: string; schemaVersion: number };
   }> {
     const catalogueItem = await tx.trackingCatalogueItem.findFirst({
       where: {
         slug: catalogueItemSlug,
         // Only consider items from published rule sets
-        rule_set: {
+        ruleSet: {
           status: "published",
         },
       },
-      select: { id: true, slug: true, display_name: true },
+      select: { id: true, slug: true, displayName: true },
     });
 
     if (!catalogueItem) {
@@ -216,8 +216,8 @@ export class JournalWriterTool {
     }
 
     const journalTable = await tx.journalEntryTable.findUnique({
-      where: { catalogue_item_id: catalogueItem.id },
-      select: { table_name: true, schema_version: true },
+      where: { catalogueItemId: catalogueItem.id },
+      select: { tableName: true, schemaVersion: true },
     });
 
     if (!journalTable) {
@@ -247,14 +247,14 @@ export class JournalWriterTool {
   }> {
     // Get field definitions from catalogue
     const catalogueFields = await tx.trackingCatalogueField.findMany({
-      where: { catalogue_item_id: catalogueItemId },
+      where: { catalogueItemId: catalogueItemId },
       select: {
-        column_name: true,
+        columnName: true,
         label: true,
-        data_type: true,
+        dataType: true,
         required: true,
-        enum_values: true,
-        unit_hints: true,
+        enumValues: true,
+        unitHints: true,
       },
     });
 
@@ -273,7 +273,7 @@ export class JournalWriterTool {
     for (const catalogueField of catalogueFields) {
       if (
         catalogueField.required &&
-        !providedFieldNames.has(catalogueField.column_name)
+        !providedFieldNames.has(catalogueField.columnName)
       ) {
         promptsIssued.push({
           type: "missing_field",
@@ -285,7 +285,7 @@ export class JournalWriterTool {
     // Process provided fields
     for (const parsedField of parsedFields) {
       const catalogueField = catalogueFields.find(
-        (cf: any) => cf.column_name === parsedField.name
+        (cf: any) => cf.columnName === parsedField.name
       );
 
       if (!catalogueField) {
@@ -304,8 +304,8 @@ export class JournalWriterTool {
       // Normalize value based on data type
       const { normalizedValue, sqlType } = this.normalizeFieldValue(
         parsedField.value,
-        catalogueField.data_type,
-        catalogueField.enum_values
+        catalogueField.dataType,
+        catalogueField.enumValues
       );
 
       normalizedFields.push({
@@ -317,13 +317,13 @@ export class JournalWriterTool {
       // Check units if provided
       if (
         parsedField.unit &&
-        catalogueField.unit_hints &&
-        catalogueField.unit_hints.length > 0
+        catalogueField.unitHints &&
+        catalogueField.unitHints.length > 0
       ) {
-        if (!catalogueField.unit_hints.includes(parsedField.unit)) {
+        if (!catalogueField.unitHints.includes(parsedField.unit)) {
           promptsIssued.push({
             type: "follow_up",
-            message: `Unit '${parsedField.unit}' for ${catalogueField.label} seems unusual. Expected units: ${catalogueField.unit_hints.join(", ")}.`,
+            message: `Unit '${parsedField.unit}' for ${catalogueField.label} seems unusual. Expected units: ${catalogueField.unitHints.join(", ")}.`,
           });
         }
       }
@@ -494,10 +494,10 @@ export class JournalWriterTool {
   ): Promise<string> {
     const auditEvent = await tx.auditEvent.create({
       data: {
-        actor_type: "user",
-        actor_id: context.userId,
-        event_type: "journal.inserted",
-        resource_ref: `${tableName}:${recordId}`,
+        actorType: "user",
+        actorId: context.userId,
+        eventType: "journal.inserted",
+        resourceRef: `${tableName}:${recordId}`,
         payload: {
           tableName,
           recordId,
