@@ -8,18 +8,18 @@
 - [x] T001 Update `package.json` to add Prisma/PostgreSQL dependencies (`@prisma/client`, `prisma`, `pg`, `pgvector`) and npm scripts for `prisma generate`, `prisma migrate`, and test runner bootstrap. _(Depends on: none)_
 - [x] T002 Initialize Prisma scaffolding by creating `prisma/schema.prisma` with Postgres datasource, client generator, and `@@include` statements for modular models. Implement all the modular models as well. _(Depends on: T001)_
 - [x] T003 Create shared Prisma client factory with telemetry hooks in `src/mastra/lib/prisma-client.ts` (plus barrel export if needed) loading connection settings from the environment. _(Depends on: T002)_
-- [x] T004 [P] Define `admin_rule_sets` Prisma model, indexes, and publication status enum in `prisma/models/admin_rule_sets.prisma`. _(Depends on: T002)_
-- [x] T005 [P] Define `tracking_catalogue_items` Prisma model with unique slug constraint in `prisma/models/tracking_catalogue_items.prisma`. _(Depends on: T002)_
-- [x] T006 [P] Define `tracking_catalogue_fields` Prisma model with enum metadata in `prisma/models/tracking_catalogue_fields.prisma`. _(Depends on: T005)_
-- [x] T007 [P] Define `journal_entry_tables` Prisma model and schema version tracking in `prisma/models/journal_entry_tables.prisma`. _(Depends on: T004, T005)_
+- [x] T004 [P] Define `admin_rule_sets` Prisma model, indexes, and publication status enum in `prisma/schema.prisma`. _(Depends on: T002)_
+- [x] T005 [P] Define `tracking_catalogue_items` Prisma model with unique slug constraint in `prisma/schema.prisma`. _(Depends on: T002)_
+- [x] T006 [P] Define `tracking_catalogue_fields` Prisma model with enum metadata in `prisma/models/schema.prisma`. _(Depends on: T005)_
+- [x] T007 [P] Define `journal_entry_tables` Prisma model and schema version tracking in `prisma/schema.prisma`. _(Depends on: T004, T005)_
 - [x] T008 [P] Author dynamic journal base table SQL template (`prisma/sql/journal_base_table.sql`) capturing shared columns and foreign keys for runtime DDL. _(Depends on: T003, T007)_
-- [x] T009 [P] Define `user_profiles` Prisma model with consent status enum in `prisma/models/user_profiles.prisma`. _(Depends on: T002)_
-- [x] T010 [P] Define `caregiver_profiles` Prisma model in `prisma/models/caregiver_profiles.prisma`. _(Depends on: T002)_
-- [x] T011 [P] Define `reminder_rules` Prisma model with schedule and escalation fields in `prisma/models/reminder_rules.prisma`. _(Depends on: T005)_
-- [x] T012 [P] Define `reminder_dispatches` Prisma model with delivery status enum in `prisma/models/reminder_dispatches.prisma`. _(Depends on: T011)_
-- [x] T013 [P] Define `documents` Prisma model for encrypted storage metadata in `prisma/models/documents.prisma`. _(Depends on: T002)_
-- [x] T014 [P] Define `document_embeddings` Prisma model with pgvector type in `prisma/models/document_embeddings.prisma`. _(Depends on: T013)_
-- [x] T015 [P] Define `audit_events` Prisma model with composite index in `prisma/models/audit_events.prisma`. _(Depends on: T004)_
+- [x] T009 [P] Define `user_profiles` Prisma model with consent status enum in `prisma/schema.prisma`. _(Depends on: T002)_
+- [x] T010 [P] Define `caregiver_profiles` Prisma model in `prisma/models/schema.prisma`. _(Depends on: T002)_
+- [x] T011 [P] Define `reminder_rules` Prisma model with schedule and escalation fields in `prisma/models/schema.prisma`. _(Depends on: T005)_
+- [x] T012 [P] Define `reminder_dispatches` Prisma model with delivery status enum in `prisma/models/schema.prisma`. _(Depends on: T011)_
+- [x] T013 [P] Define `documents` Prisma model for encrypted storage metadata in `prisma/models/schema.prisma`. _(Depends on: T002)_
+- [x] T014 [P] Define `document_embeddings` Prisma model with pgvector type in `prisma/models/schema.prisma`. _(Depends on: T013)_
+- [x] T015 [P] Define `audit_events` Prisma model with composite index in `prisma/models/schema.prisma`. _(Depends on: T004)_
 - [x] T016 [P] Write contract tests for `catalogueSchemaTool` covering create/alter/no-change flows in `tests/contracts/catalogue-schema-tool.contract.test.ts`. _(Depends on: T004-T015)_
 - [x] T017 [P] Write contract tests for `journalWriterTool` covering consent gating and follow-up prompts in `tests/contracts/journal-writer-tool.contract.test.ts`. _(Depends on: T004-T015)_
 - [x] T018 [P] Write parser unit tests validating admin text extraction in `tests/lib/catalogue-schema-parser.test.ts`. _(Depends on: T004-T015)_
