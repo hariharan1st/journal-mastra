@@ -39,7 +39,7 @@ Follow-up TODOs: None
 
 - Code MUST favor clarity over cleverness: meaningful names, small functions, and inline documentation where intent is non-obvious.
 - Reviewers MUST block changes that lack explanatory comments for complex flows or domain rules.
-- Automated tests are OPTIONAL; when omitted, contributors MUST include runnable examples or clear manual validation notes in the PR description.
+- Automated tests are Mandatory
 
 **Rationale**: Understandable code is the primary quality gate, enabling safe iteration even without a heavy testing footprint.
 
@@ -64,7 +64,6 @@ Follow-up TODOs: None
 - Prefer TypeScript features (types, generics) to document contracts and catch defects early.
 - Shared utilities MUST live under `src/mastra/` and follow a consistent folder structure: `agents/`, `models/`, `tools/`, `workflows/`.
 - Configuration files (e.g., `.env`) MUST define defaults safely; production overrides belong in secure ops channels.
-- Manual validation steps MUST be captured in `docs/` or PR notes so others can reproduce behavior confidently.
 - Avoid introducing frameworks or heavy dependencies without demonstrating clear, measurable scalability gains.
 
 ## Delivery Workflow
@@ -72,8 +71,7 @@ Follow-up TODOs: None
 1. Capture problem framing and desired behavior in a feature spec referencing this constitution.
 2. Sketch module boundaries and reuse opportunities before writing code; verify alignment with Principles I and II.
 3. Implement in small, reviewable increments with attention to readability, inline rationale, and security hardening.
-4. Document manual validation evidence (screenshots, CLI transcripts, benchmarks) in the PR or accompanying docs.
-5. Perform a post-merge review within one week to confirm runtime efficiency and identify reusable improvements for future work.
+4. Perform a post-merge review within one week to confirm runtime efficiency and identify reusable improvements for future work.
 
 ## Governance
 
