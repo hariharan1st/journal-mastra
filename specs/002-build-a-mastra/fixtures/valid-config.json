@@ -1,0 +1,35 @@
+{
+  "version": "1.0.0",
+  "tables": [
+    {
+      "tableName": "sample_entries",
+      "toolId": "sample-logger",
+      "displayName": "Sample Entry Logger",
+      "description": "Valid sample configuration for testing",
+      "fields": [
+        {
+          "name": "user_id",
+          "label": "User ID",
+          "dataType": "text",
+          "required": true,
+          "maxLength": 50
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "dataType": "enum",
+          "required": true,
+          "enumValues": ["active", "inactive", "pending"]
+        },
+        {
+          "name": "score",
+          "label": "Score",
+          "dataType": "integer",
+          "required": false,
+          "min": 0,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}

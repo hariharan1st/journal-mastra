@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "tables": [
+    {
+      "tableName": "InvalidTableName",
+      "toolId": "test-tool",
+      "displayName": "Test",
+      "description": "Invalid table name (not snake_case)",
+      "fields": [
+        {
+          "name": "field1",
+          "label": "Field 1",
+          "dataType": "text",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "version": "1.0.0",
+  "metadata": {
+    "author": "Journal Mastra Team",
+    "description": "Habit tracking configuration for behavior monitoring",
+    "createdAt": "2025-10-05T00:00:00Z"
+  },
+  "tables": [
+    {
+      "tableName": "habit_logs",
+      "toolId": "log-habit",
+      "displayName": "Habit Tracker",
+      "description": "Track daily habits and behavioral patterns with completion status and metrics",
+      "fields": [
+        {
+          "name": "user_id",
+          "label": "User ID",
+          "dataType": "text",
+          "required": true,
+          "maxLength": 50
+        },
+        {
+          "name": "habit_name",
+          "label": "Habit Name",
+          "dataType": "text",
+          "required": true,
+          "maxLength": 100
+        },
+        {
+          "name": "completed",
+          "label": "Completed Today",
+          "dataType": "boolean",
+          "required": true,
+          "defaultValue": false
+        },
+        {
+          "name": "duration_minutes",
+          "label": "Duration (minutes)",
+          "dataType": "integer",
+          "required": false,
+          "min": 0,
+          "max": 1440
+        },
+        {
+          "name": "intensity",
+          "label": "Intensity Level",
+          "dataType": "enum",
+          "required": false,
+          "enumValues": ["low", "medium", "high"]
+        },
+        {
+          "name": "quality_score",
+          "label": "Quality Score (0-10)",
+          "dataType": "numeric",
+          "required": false,
+          "min": 0,
+          "max": 10,
+          "precision": 3,
+          "scale": 1
+        },
+        {
+          "name": "notes",
+          "label": "Notes",
+          "dataType": "text",
+          "required": false,
+          "maxLength": 300
+        },
+        {
+          "name": "logged_at",
+          "label": "Log Timestamp",
+          "dataType": "datetime",
+          "required": true,
+          "defaultValue": "now"
+        }
+      ],
+      "columnMappings": {
+        "logged_at": "timestamp"
+      }
+    }
+  ]
+}

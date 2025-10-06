@@ -1,0 +1,19 @@
+{
+  "version": "invalid-version",
+  "tables": [
+    {
+      "tableName": "test_table",
+      "toolId": "test-tool",
+      "displayName": "Test",
+      "description": "Invalid version format",
+      "fields": [
+        {
+          "name": "field1",
+          "label": "Field 1",
+          "dataType": "text",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "metadata": {
+    "author": "Journal Mastra Team",
+    "description": "Mood tracking configuration for mental health journaling",
+    "createdAt": "2025-10-05T00:00:00Z"
+  },
+  "tables": [
+    {
+      "tableName": "mood_entries",
+      "toolId": "log-mood",
+      "displayName": "Mood Entry Logger",
+      "description": "Record daily mood, energy level, and contextual notes for mental health tracking",
+      "fields": [
+        {
+          "name": "user_id",
+          "label": "User ID",
+          "dataType": "text",
+          "required": true,
+          "maxLength": 50
+        },
+        {
+          "name": "mood",
+          "label": "Current Mood",
+          "dataType": "enum",
+          "required": true,
+          "enumValues": [
+            "happy",
+            "sad",
+            "neutral",
+            "anxious",
+            "excited",
+            "angry",
+            "calm"
+          ],
+          "defaultValue": "neutral"
+        },
+        {
+          "name": "energy_level",
+          "label": "Energy Level (1-10)",
+          "dataType": "integer",
+          "required": true,
+          "min": 1,
+          "max": 10
+        },
+        {
+          "name": "sleep_hours",
+          "label": "Hours of Sleep",
+          "dataType": "numeric",
+          "required": false,
+          "min": 0,
+          "max": 24,
+          "precision": 4,
+          "scale": 2
+        },
+        {
+          "name": "notes",
+          "label": "Additional Notes",
+          "dataType": "text",
+          "required": false,
+          "maxLength": 500
+        },
+        {
+          "name": "has_medication",
+          "label": "Took Medication",
+          "dataType": "boolean",
+          "required": false,
+          "defaultValue": false
+        },
+        {
+          "name": "timestamp",
+          "label": "Entry Timestamp",
+          "dataType": "datetime",
+          "required": true,
+          "defaultValue": "now"
+        },
+        {
+          "name": "tags",
+          "label": "Activity Tags",
+          "dataType": "json",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
